@@ -28,7 +28,6 @@ end)
 
 -- 2. Configuration Table
 _G.MM2Config = _G.MM2Config or {
-    ["SilentAim"] = true,
     ["HoldRMBLock"] = true,
     ["ShowFOV"] = true,
     ["FOVRadius"] = 120,
@@ -138,19 +137,22 @@ local function checkLobbyStatus()
     return false
 end
 
-local function isKnifeTool(tool)
+local function isGunTool(tool)
     if not tool or not tool:IsA("Tool") then return false end
     local name = string.lower(tool.Name)
-    if name == "knife" or string.find(name, "knife") or tool:FindFirstChild("KnifeServer") or tool:FindFirstChild("KnifeClient") or tool:FindFirstChild("Stab") or tool:FindFirstChild("Slash") or string.find(name, "blade") or string.find(name, "dagger") or string.find(name, "scythe") or string.find(name, "sword") or string.find(name, "axe") or string.find(name, "bat") or string.find(name, "corrupt") or string.find(name, "harvester") then
+    if name == "gun" or string.find(name, "gun") or tool:FindFirstChild("GunGUI") or tool:FindFirstChild("GunClient") or tool:FindFirstChild("ShootGun") or tool:FindFirstChild("GunServer") or string.find(name, "revolver") or string.find(name, "pistol") or string.find(name, "luger") or string.find(name, "blaster") then
         return true
     end
     return false
 end
 
-local function isGunTool(tool)
+local function isKnifeTool(tool)
     if not tool or not tool:IsA("Tool") then return false end
+    -- If it's a gun, it is 100% NOT a knife!
+    if isGunTool(tool) then return false end
+
     local name = string.lower(tool.Name)
-    if name == "gun" or string.find(name, "gun") or tool:FindFirstChild("GunGUI") or tool:FindFirstChild("GunClient") or tool:FindFirstChild("ShootGun") or tool:FindFirstChild("GunServer") or string.find(name, "revolver") or string.find(name, "pistol") or string.find(name, "luger") or string.find(name, "blaster") then
+    if name == "knife" or string.find(name, "knife") or tool:FindFirstChild("Stab") or tool:FindFirstChild("Slash") or string.find(name, "blade") or string.find(name, "dagger") or string.find(name, "scythe") or string.find(name, "sword") or string.find(name, "axe") or string.find(name, "bat") or string.find(name, "corrupt") or string.find(name, "harvester") then
         return true
     end
     return false
@@ -202,6 +204,38 @@ local function updateRoles()
         return
     end
 
+    -- First check if LocalPlayer is Murderer or Sheriff
+    local myChar = LocalPlayer.Character
+    local myBp = LocalPlayer:FindFirstChild("Backpack")
+    local isLocalMurd = false
+    local isLocalSheriff = false
+
+    if myChar then
+        for _, item in ipairs(myChar:GetChildren()) do
+            if isKnifeTool(item) then isLocalMurd = true end
+            if isGunTool(item) then isLocalSheriff = true end
+        end
+    end
+    if myBp then
+        for _, item in ipairs(myBp:GetChildren()) do
+            if isKnifeTool(item) then isLocalMurd = true end
+            if isGunTool(item) then isLocalSheriff = true end
+        end
+    end
+
+    if isLocalMurd then
+        currentRoles.Murderer = LocalPlayer
+    else
+        currentRoles.Murderer = nil
+    end
+
+    if isLocalSheriff then
+        currentRoles.Sheriff = LocalPlayer
+    else
+        currentRoles.Sheriff = nil
+    end
+
+    -- Scan other players
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then
             local char = p.Character
@@ -209,15 +243,21 @@ local function updateRoles()
             
             if char then
                 for _, item in ipairs(char:GetChildren()) do
-                    if isKnifeTool(item) then currentRoles.Murderer = p end
-                    if isGunTool(item) then currentRoles.Sheriff = p end
+                    if isGunTool(item) then
+                        currentRoles.Sheriff = p
+                    elseif isKnifeTool(item) and currentRoles.Murderer ~= LocalPlayer then
+                        currentRoles.Murderer = p
+                    end
                 end
             end
             
             if bp then
                 for _, item in ipairs(bp:GetChildren()) do
-                    if isKnifeTool(item) then currentRoles.Murderer = p end
-                    if isGunTool(item) then currentRoles.Sheriff = p end
+                    if isGunTool(item) then
+                        currentRoles.Sheriff = p
+                    elseif isKnifeTool(item) and currentRoles.Murderer ~= LocalPlayer then
+                        currentRoles.Murderer = p
+                    end
                 end
             end
         end
@@ -259,7 +299,25 @@ end
 for _, p in ipairs(Players:GetPlayers()) do setupPlayerListeners(p) end
 Players.PlayerAdded:Connect(setupPlayerListeners)
 
--- Efficient GunDrop Tracker
+-- Re-apply WalkSpeed & JumpPower on character respawn
+LocalPlayer.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if hum then
+        task.wait(0.2)
+        if _G.MM2Config["WalkSpeed"] and _G.MM2Config["WalkSpeed"] ~= 16 then
+            hum.WalkSpeed = _G.MM2Config["WalkSpeed"]
+        end
+        if _G.MM2Config["JumpPower"] and _G.MM2Config["JumpPower"] ~= 50 then
+            hum.JumpPower = _G.MM2Config["JumpPower"]
+        end
+    end
+end)
+
+-- Efficient GunDrop Tracker (With Startup Scanner)
+pcall(function()
+    cachedGunDrop = Workspace:FindFirstChild("GunDrop", true)
+end)
+
 Workspace.DescendantAdded:Connect(function(obj)
     if obj.Name == "GunDrop" and obj:IsA("BasePart") then
         cachedGunDrop = obj
@@ -306,10 +364,9 @@ end)
 -- 🎯 100% ACCURATE AIMBOT (DIRECT HEAD/TORSO LOCK + SILENT AIM)
 -- ====================================================================
 
-local function getSilentAimTarget()
+local function getAimbotTarget()
     local candidates = {}
-    local myChar = LocalPlayer.Character
-    local isLocalMurderer = myChar and isKnifeTool(myChar:FindFirstChildWhichIsA("Tool"))
+    local isLocalMurderer = getLocalKnife() ~= nil or currentRoles.Murderer == LocalPlayer
 
     if isLocalMurderer then
         for _, p in ipairs(Players:GetPlayers()) do
@@ -356,10 +413,11 @@ end
 local function getTargetPosition(targetPlayer)
     if not targetPlayer or not targetPlayer.Character then return nil end
     local char = targetPlayer.Character
-    local head = char:FindFirstChild("Head")
     local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChild("HumanoidRootPart")
-    local targetPart = head or torso
+    local head = char:FindFirstChild("Head")
+    local targetPart = torso or head
     if not targetPart then return nil end
+
     return targetPart.Position
 end
 
@@ -377,34 +435,86 @@ local function alignCameraToMouseFOV(targetPos, mousePos)
     Camera.CFrame = CFrame.new(camPos) * finalRotation.Rotation
 end
 
-_G.MM2Config["AimLockKey"] = Enum.KeyCode.E
-local isAimLockActive = false
+-- Hardware-Level Input Checker & Keybind Tracker (Never gets stuck, 100% reliable)
+local isCustomKeyHeld = false
+local currentAimLockKey = Enum.KeyCode.LeftShift
 
--- RenderStepped: Lightweight FOV & Keybind / RMB Lock
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if input.KeyCode == currentAimLockKey and currentAimLockKey ~= Enum.KeyCode.Unknown then
+        isCustomKeyHeld = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gpe)
+    if input.KeyCode == currentAimLockKey then
+        isCustomKeyHeld = false
+    end
+end)
+
+local function isLockInputActive()
+    -- 1. Check Right Mouse Button (RMB)
+    if _G.MM2Config["HoldRMBLock"] then
+        local success, isPressed = pcall(function()
+            return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+        end)
+        if success and isPressed then return true end
+    end
+
+    -- 2. Check Custom Keybind (e.g. LeftShift, E, Q)
+    if isCustomKeyHeld then return true end
+
+    if currentAimLockKey and currentAimLockKey ~= Enum.KeyCode.Unknown then
+        local success, isDown = pcall(function()
+            return UserInputService:IsKeyDown(currentAimLockKey)
+        end)
+        if success and isDown then return true end
+    end
+
+    return false
+end
+
+local lockedTarget = nil
+
+-- RenderStepped: 100% Real-Time Ultra-Responsive Aimbot & FOV Loop (144+ FPS Zero Delay)
 RunService.RenderStepped:Connect(function()
-    local isRMBHeld = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-    local isLockActive = isAimLockActive or (_G.MM2Config["HoldRMBLock"] and isRMBHeld)
+    local isLockActive = isLockInputActive()
     local showFOV = _G.MM2Config["ShowFOV"]
     
     if not showFOV and not isLockActive then
+        lockedTarget = nil
         if fovCircle then fovCircle.Visible = false end
         if snapLine then snapLine.Visible = false end
         return
     end
 
     local mousePos = UserInputService:GetMouseLocation()
-    local target = getSilentAimTarget()
+
+    -- 100% Real-Time Target Latch: Stays glued to target without dropping frames
+    if isLockActive then
+        if not lockedTarget or not lockedTarget.Character or not lockedTarget.Character:FindFirstChild("HumanoidRootPart") then
+            lockedTarget = getAimbotTarget()
+        else
+            local hum = lockedTarget.Character:FindFirstChildOfClass("Humanoid")
+            if not hum or hum.Health <= 0 then
+                lockedTarget = getAimbotTarget()
+            end
+        end
+    else
+        lockedTarget = nil
+    end
+
+    local activeTarget = lockedTarget or getAimbotTarget()
 
     if fovCircle then
         fovCircle.Position = mousePos
         fovCircle.Radius = _G.MM2Config["FOVRadius"] or 120
         fovCircle.Visible = showFOV
-        fovCircle.Color = target and Color3.fromRGB(255, 60, 60) or (_G.MM2Config["FOVColor"] or Color3.fromRGB(255, 215, 0))
+        fovCircle.Color = activeTarget and Color3.fromRGB(255, 60, 60) or (_G.MM2Config["FOVColor"] or Color3.fromRGB(255, 215, 0))
     end
 
     if snapLine then
-        if showFOV and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local sp, vis = Camera:WorldToViewportPoint(target.Character.HumanoidRootPart.Position)
+        if showFOV and activeTarget and activeTarget.Character and activeTarget.Character:FindFirstChild("HumanoidRootPart") then
+            local sp, vis = Camera:WorldToViewportPoint(activeTarget.Character.HumanoidRootPart.Position)
             if vis then
                 snapLine.From = mousePos
                 snapLine.To = Vector2.new(sp.X, sp.Y)
@@ -417,86 +527,12 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- Camera Aimbot (Locks enemy directly into the center of the Yellow Mouse FOV Circle on Custom Key or RMB)
-    if target and isLockActive then
-        local tPos = getTargetPosition(target)
+    -- Instant Real-Time Camera Lock (Follows target seamlessly 144+ FPS)
+    if activeTarget and isLockActive then
+        local tPos = getTargetPosition(activeTarget)
         if tPos then
             alignCameraToMouseFOV(tPos, mousePos)
         end
-    end
-end)
-
--- Metamethod Hooks for 100% Reliable Shooting & Bullet Redirect (Ultra-Fast)
-pcall(function()
-    if hookmetamethod and newcclosure then
-        local SHOOT_REMOTES = {
-            ["GunBeam"] = true,
-            ["GunFired"] = true,
-            ["ShootGun"] = true,
-            ["KnifeServer"] = true,
-            ["KnifeKill"] = true,
-            ["Throw"] = true
-        }
-
-        local oldNamecall
-        oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-            if not checkcaller() and _G.MM2Config["SilentAim"] then
-                local method = getnamecallmethod()
-                if method == "FireServer" or method == "fireServer" then
-                    local sName = self.Name
-                    if SHOOT_REMOTES[sName] then
-                        local target = getSilentAimTarget()
-                        if target then
-                            local tPos = getTargetPosition(target)
-                            if tPos then
-                                local args = {...}
-                                local v3Count = 0
-                                for i = 1, #args do
-                                    if typeof(args[i]) == "Vector3" then v3Count = v3Count + 1 end
-                                end
-
-                                local currentV3 = 0
-                                for i = 1, #args do
-                                    if typeof(args[i]) == "Vector3" then
-                                        currentV3 = currentV3 + 1
-                                        if v3Count == 1 or currentV3 == v3Count then
-                                            args[i] = tPos
-                                        end
-                                    elseif typeof(args[i]) == "CFrame" then
-                                        args[i] = CFrame.new(tPos)
-                                    elseif typeof(args[i]) == "table" then
-                                        for k, v in pairs(args[i]) do
-                                            if typeof(v) == "Vector3" then args[i][k] = tPos end
-                                        end
-                                    end
-                                end
-                                return oldNamecall(self, unpack(args))
-                            end
-                        end
-                    end
-                end
-            end
-            return oldNamecall(self, ...)
-        end))
-
-        local oldIndex
-        oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-            -- ULTRA-FAST CHECK: Pass through instantly if key is not Hit or Target
-            if key == "Hit" or key == "hit" or key == "Target" or key == "target" then
-                if not checkcaller() and _G.MM2Config["SilentAim"] then
-                    local target = getSilentAimTarget()
-                    if target and target.Character then
-                        if key == "Hit" or key == "hit" then
-                            local tPos = getTargetPosition(target)
-                            if tPos then return CFrame.new(tPos) end
-                        elseif key == "Target" or key == "target" then
-                            return target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("HumanoidRootPart")
-                        end
-                    end
-                end
-            end
-            return oldIndex(self, key)
-        end))
     end
 end)
 
@@ -513,17 +549,15 @@ CombatTab:AddToggle({
 
 CombatTab:AddBind({
     Name = "⌨️ Custom Aim Lock Key (ปุ่มล็อกเป้าเสริม)",
-    Default = _G.MM2Config["AimLockKey"] or Enum.KeyCode.E,
+    Default = Enum.KeyCode.LeftShift,
     Hold = true,
     Callback = function(Value)
-        isAimLockActive = Value
+        if typeof(Value) == "boolean" then
+            isCustomKeyHeld = Value
+        elseif typeof(Value) == "EnumItem" then
+            currentAimLockKey = Value
+        end
     end
-})
-
-CombatTab:AddToggle({
-    Name = "🎯 Enable Silent Aim (กระสุนดูดเข้าเป้า)",
-    Default = _G.MM2Config["SilentAim"],
-    Callback = function(Value) _G.MM2Config["SilentAim"] = Value end
 })
 
 CombatTab:AddToggle({
@@ -672,14 +706,15 @@ CombatTab:AddButton({
         end
 
         local char = LocalPlayer.Character
-        local gun = (char and char:FindFirstChild("Gun")) or (LocalPlayer.Backpack:FindFirstChild("Gun"))
+        local gun = getLocalGun()
         if not gun then
             OrionLib:MakeNotification({Name = "❌ No Gun", Content = "You don't have a gun!", Time = 3})
             return
         end
 
-        if gun.Parent ~= char then
-            char.Humanoid:EquipTool(gun)
+        if char and gun.Parent ~= char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum:EquipTool(gun) end
             task.wait(0.1)
         end
 
@@ -1049,7 +1084,7 @@ task.spawn(function()
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 -- 🛡️ RULE: Do NOT grab gun if we are Murderer or already have a knife/gun!
                 if getLocalKnife() ~= nil or currentRoles.Murderer == LocalPlayer then return end
-                if getLocalGun() ~= nil or char:FindFirstChild("Gun") or (bp and bp:FindFirstChild("Gun")) then return end
+                if getLocalGun() ~= nil then return end
 
                 local gunDrop = cachedGunDrop
                 if gunDrop and gunDrop.Parent then
