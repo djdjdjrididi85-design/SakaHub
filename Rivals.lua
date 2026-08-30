@@ -1,13 +1,10 @@
 -- ====================================================================
--- 👑 SAKA HUB | RIVALS (ULTIMATE PURE EDITION V14.0 MASTER)
--- 🎮 Game: RIVALS (Roblox FPS / PVP)
--- 🆔 Universe ID: 6035872082 | Place IDs: 17625359962 / 117398147513099
--- 🚀 100% NATIVE ZERO-LAG ENGINE (LOBBY & IN-MATCH ARENA COMPATIBLE)
--- 🎯 INSTANT HEAD LOCK | 👁️ VISUALS & ESP | ⚡ MOVEMENT | 🚀 TELEPORT | 🎁 MISC
--- 🗕 MINIMIZABLE GUI & FLOATING TOGGLE ICON
--- 🔴 RED NEON TOP SCREEN BAR & TARGET TRACER
--- 💾 PERSISTENT AUTO-SAVE SYSTEM
--- ⌨️ GUI TOGGLE: Press [RightControl] or Click Floating SAKA Icon
+-- 👑 SAKA HUB | RIVALS (ULTIMATE ANTI-BAN & LEGIT/RAGE EDITION V14.0)
+-- 🛡️ BUILT-IN ANTI-BAN & ANTI-REPORT SYSTEM (WALL CHECK, LEGIT SMOOTH, HITBOX RANDOMIZER)
+-- ⚡ 144+ FPS ULTRA-SMOOTH NATIVE ENGINE (ZERO FREEZE, ZERO LAG)
+-- 🔴 RED TOP-SCREEN BORDER & RED AIM LOCK TRACER
+-- 💾 PERSISTENT AUTO-SAVE & AUTO-LOAD SYSTEM
+-- ⌨️ GUI TOGGLE: Press [RightControl] or Click Floating Logo / Buttons
 -- ====================================================================
 
 -- 1. Full Environment Reset & Cache Purge
@@ -65,8 +62,6 @@ local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
-
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
@@ -83,25 +78,30 @@ table.insert(_G.SakaHubConnections, LocalPlayer.Idled:Connect(function()
 end))
 
 -- ====================================================================
--- ⚙️ CONFIGURATION & AUTO-SAVE
+-- ⚙️ CONFIGURATION & PERSISTENT AUTO-SAVE
 -- ====================================================================
 local ConfigFileName = "SAKAHUB_RIVALS_Settings.json"
 
 local Config = {
-    -- 🎯 Combat
+    -- 🎯 Combat Settings
     AimLock = true,
-    InstantSnap = true,         -- ⚡ 0ms Lock Head
-    StickyLock = true,
+    InstantSnap = false,        -- ⚡ Instant Snap
+    StickyLock = true,          -- 📌 Stick to current target
     TriggerMode = "Hold Key (Shift)", -- "Hold Key (Shift)", "Hold RMB (Right Click)", "Always On"
     Key = Enum.KeyCode.LeftShift,
-    Smoothness = 0,             -- 0 = Instant, 10-100 = Smooth
+    Smoothness = 45,            -- 0 = Instant, 10-100 = Smooth
     Priority = "Closest Crosshair", -- "Closest Distance", "Closest Crosshair"
-    Bone = "Head",              -- "Head", "Torso"
+    Bone = "Head",              -- "Head", "Torso", "Randomized"
     HeadOffset = 0.15,
     Prediction = true,
     ShowFOV = true,
-    FOVRadius = 220,
-    ShowAimTracer = true,
+    FOVRadius = 160,            -- 20 to 400 px
+    ShowAimTracer = true,       -- 🔴 Red Line to target
+
+    -- 🛡️ Anti-Ban & Legit Protections
+    WallCheck = true,           -- 🛡️ Only lock if target is not behind walls (Anti-Report)
+    RandomHitbox = true,        -- 🎲 70% Head / 30% Torso (Prevents 100% HS stat bans)
+    Humanize = true,            -- ✨ Micro-smoothing easing curves
 
     -- 👁️ Visuals & ESP
     ShowTopLine = true,
@@ -110,13 +110,13 @@ local Config = {
     ESPNames = true,
     ESPHealth = true,
     ESPSnaplines = false,
-    MaxDist = 600,
+    MaxDist = 500,
     FPSBooster = true,
     AntiFlashbang = true,
 
-    -- ⚡ Movement
+    -- ⚡ Movement (Safe Limits)
     Speed = false,
-    WalkSpeed = 32,
+    WalkSpeed = 28,             -- Safe speed (24-32 avoids server rubberband kicks)
     InfJump = false,
     Noclip = false
 }
@@ -145,6 +145,7 @@ local function RequestSaveSettings()
 end
 
 -- Safe Load
+local loadedSuccessfully = false
 pcall(function()
     if isfile and isfile(ConfigFileName) and readfile then
         local raw = readfile(ConfigFileName)
@@ -159,11 +160,12 @@ pcall(function()
                     Config[k] = v
                 end
             end
+            loadedSuccessfully = true
         end
     end
 end)
 
--- 🚀 2. PERFORMANCE BOOSTER
+-- 🚀 2. MAP & GRAPHICS PERFORMANCE BOOSTER
 local function applyFPSBoost()
     pcall(function()
         Lighting.GlobalShadows = false
@@ -212,7 +214,7 @@ pcall(function()
 end)
 
 -- ====================================================================
--- 🔴 RED TOP-SCREEN BORDER GUI
+-- 🔴 RED TOP-SCREEN BORDER GUI (0% CPU COST)
 -- ====================================================================
 local TopBarGui = Instance.new("ScreenGui")
 TopBarGui.Name = "SAKA_TopRedBar"
@@ -260,16 +262,39 @@ LockTracer.Visible = false
 table.insert(_G.SakaHubDrawings, LockTracer)
 
 local LockText = Drawing.new("Text")
-LockText.Size = 14
+LockText.Size = 13
 LockText.Center = true
 LockText.Outline = true
 LockText.Color = Color3.fromRGB(255, 60, 70)
-LockText.OutlineColor = Color3.fromRGB(0, 0, 0)
 LockText.Visible = false
 table.insert(_G.SakaHubDrawings, LockText)
 
 -- ====================================================================
--- 🔍 TARGET ACQUISITION (IN-MATCH & LOBBY TARGET FINDER)
+-- 🛡️ VISIBLE / WALL CHECK (ANTI-REPORT)
+-- ====================================================================
+local function isPartVisible(part)
+    if not part then return false end
+    if not Config.WallCheck then return true end
+
+    local char = LocalPlayer.Character
+    local targetChar = part.Parent
+    if not char or not targetChar then return false end
+
+    local origin = Camera.CFrame.Position
+    local destination = part.Position
+    local dir = destination - origin
+
+    local params = RaycastParams.new()
+    params.FilterType = RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {char, targetChar, Camera}
+    params.IgnoreWater = true
+
+    local result = Workspace:Raycast(origin, dir, params)
+    return result == nil -- If nothing blocked the ray, target is visible!
+end
+
+-- ====================================================================
+-- 🔍 TARGET ACQUISITION & HITBOX SELECTION
 -- ====================================================================
 local isAiming = false
 local currentTarget = nil
@@ -278,13 +303,28 @@ local function getTargetPart(char)
     if not char then return nil end
     local head = char:FindFirstChild("Head")
     local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
-    return Config.Bone == "Head" and (head or root) or (root or head)
+
+    -- 🎲 Random Hitbox Mode (70% Head / 30% Torso to keep realistic stats)
+    if Config.RandomHitbox then
+        local roll = math.random(1, 100)
+        if roll <= 70 then
+            return head or root
+        else
+            return root or head
+        end
+    end
+
+    if Config.Bone == "Head" then
+        return head or root
+    else
+        return root or head
+    end
 end
 
 local function getPredictedPos(targetPart)
     if not targetPart then return nil end
     local pos = targetPart.Position
-    if Config.Bone == "Head" then
+    if targetPart.Name == "Head" then
         pos = pos + Vector3.new(0, Config.HeadOffset or 0.15, 0)
     end
     if Config.Prediction and targetPart.AssemblyLinearVelocity then
@@ -311,14 +351,10 @@ local function findBestTarget()
         if plr ~= LocalPlayer and plr.Character then
             local hum = plr.Character:FindFirstChildOfClass("Humanoid")
             if hum and hum.Health > 0 then
-                -- Check team
-                local isEnemy = true
-                if LocalPlayer.Team and plr.Team and LocalPlayer.Team == plr.Team then
-                    isEnemy = false
-                end
-                if isEnemy then
-                    local part = getTargetPart(plr.Character)
-                    if part and (part.Position - camPos):Dot(camLook) > 0 then
+                local part = getTargetPart(plr.Character)
+                if part and (part.Position - camPos):Dot(camLook) > 0 then
+                    -- 🛡️ Wall Check: Only target visible enemies
+                    if not Config.WallCheck or isPartVisible(part) then
                         local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
                         if onScreen and sp.Z > 0 then
                             local fovDist = (Vector2.new(sp.X, sp.Y) - screenCenter).Magnitude
@@ -417,7 +453,7 @@ table.insert(_G.SakaHubConnections, Players.PlayerRemoving:Connect(function(p)
 end))
 
 -- ====================================================================
--- 🔄 MAIN RUNSERVICE RENDER PIPELINE
+-- ⚡ 144+ FPS UNIFIED RENDER LOOP
 -- ====================================================================
 table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -441,8 +477,10 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
         if Config.StickyLock and currentTarget and currentTarget.Character and currentTarget.Character.Parent and currentTarget.Humanoid and currentTarget.Humanoid.Health > 0 then
             local part = getTargetPart(currentTarget.Character)
             if part and (part.Position - camPos):Dot(camLook) > 0 then
-                local _, onScreen = Camera:WorldToViewportPoint(part.Position)
-                if onScreen then target = currentTarget end
+                if not Config.WallCheck or isPartVisible(part) then
+                    local _, onScreen = Camera:WorldToViewportPoint(part.Position)
+                    if onScreen then target = currentTarget end
+                end
             end
         end
 
@@ -460,11 +498,13 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
                 if Config.InstantSnap or Config.Smoothness <= 2 then
                     Camera.CFrame = targetCFrame
                 else
-                    local smooth = math.clamp((100 - Config.Smoothness) / 100, 0.1, 1.0)
+                    -- ✨ Humanized Smooth Interpolation Curve
+                    local rawSmooth = math.clamp((100 - Config.Smoothness) / 100, 0.05, 0.95)
+                    local smooth = Config.Humanize and (rawSmooth * 0.75) or rawSmooth
                     Camera.CFrame = currentCFrame:Lerp(targetCFrame, smooth)
                 end
 
-                -- Tracer Line
+                -- Tracer Line & Target Info
                 if Config.ShowAimTracer then
                     local sp, onScreen = Camera:WorldToViewportPoint(targetPos)
                     if onScreen then
@@ -473,7 +513,7 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
                         LockTracer.Visible = true
 
                         LockText.Position = Vector2.new(sp.X, sp.Y - 22)
-                        LockText.Text = string.format("💀 [HEAD LOCK] %s | %d HP", target.Player.DisplayName or target.Player.Name, math.floor(target.Humanoid.Health))
+                        LockText.Text = string.format("🎯 [%s] %s | %d HP", target.Part.Name, target.Player.DisplayName or target.Player.Name, math.floor(target.Humanoid.Health))
                         LockText.Visible = true
                     else
                         LockTracer.Visible = false
@@ -508,14 +548,13 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
                     if onScreen and sp.Z > 1 then
                         local headPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 2.7, 0))
                         local legPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3.2, 0))
-                        local height = math.abs(headPos.Y - legPos.Y)
-                        local width = height * 0.65
-                        local boxPos = Vector2.new(sp.X - width / 2, headPos.Y)
+                        local boxHeight = math.abs(headPos.Y - legPos.Y)
+                        local boxWidth = boxHeight * 0.62
 
                         -- Snaplines
                         if Config.ESPSnaplines then
                             esp.Snap.From = topOrigin
-                            esp.Snap.To = Vector2.new(sp.X, headPos.Y)
+                            esp.Snap.To = Vector2.new(sp.X, sp.Y - boxHeight / 2)
                             esp.Snap.Visible = true
                         else
                             esp.Snap.Visible = false
@@ -523,22 +562,22 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
 
                         -- Boxes
                         if Config.ESPBoxes then
-                            esp.BoxOutline.Size = Vector2.new(width, height)
-                            esp.BoxOutline.Position = boxPos
-                            esp.BoxOutline.Visible = true
-
-                            esp.Box.Size = Vector2.new(width, height)
-                            esp.Box.Position = boxPos
+                            esp.Box.Size = Vector2.new(boxWidth, boxHeight)
+                            esp.Box.Position = Vector2.new(sp.X - boxWidth / 2, sp.Y - boxHeight / 2)
                             esp.Box.Visible = true
+
+                            esp.BoxOutline.Size = Vector2.new(boxWidth, boxHeight)
+                            esp.BoxOutline.Position = Vector2.new(sp.X - boxWidth / 2, sp.Y - boxHeight / 2)
+                            esp.BoxOutline.Visible = true
                         else
-                            esp.BoxOutline.Visible = false
                             esp.Box.Visible = false
+                            esp.BoxOutline.Visible = false
                         end
 
-                        -- Names
+                        -- Names & Distance
                         if Config.ESPNames then
-                            esp.Name.Text = string.format("%s [%dm]", plr.DisplayName or plr.Name, math.floor(dist))
-                            esp.Name.Position = Vector2.new(sp.X, boxPos.Y - 16)
+                            esp.Name.Text = string.format("%s [%dm]", plr.DisplayName, math.floor(dist))
+                            esp.Name.Position = Vector2.new(sp.X, sp.Y - boxHeight / 2 - 16)
                             esp.Name.Visible = true
                         else
                             esp.Name.Visible = false
@@ -546,10 +585,8 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
 
                         -- Health
                         if Config.ESPHealth then
-                            local hp = math.floor(hum.Health)
-                            esp.Health.Text = string.format("%d HP", hp)
-                            esp.Health.Position = Vector2.new(sp.X, boxPos.Y + height + 2)
-                            esp.Health.Color = hp > 50 and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(255, 60, 70)
+                            esp.Health.Text = string.format("%d HP", math.floor(hum.Health))
+                            esp.Health.Position = Vector2.new(sp.X, sp.Y + boxHeight / 2 + 3)
                             esp.Health.Visible = true
                         else
                             esp.Health.Visible = false
@@ -557,6 +594,17 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
 
                         esp.Active = true
                     else
+                        if esp.Active then
+                            esp.Box.Visible = false
+                            esp.BoxOutline.Visible = false
+                            esp.Name.Visible = false
+                            esp.Health.Visible = false
+                            esp.Snap.Visible = false
+                            esp.Active = false
+                        end
+                    end
+                else
+                    if esp.Active then
                         esp.Box.Visible = false
                         esp.BoxOutline.Visible = false
                         esp.Name.Visible = false
@@ -564,13 +612,6 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
                         esp.Snap.Visible = false
                         esp.Active = false
                     end
-                else
-                    esp.Box.Visible = false
-                    esp.BoxOutline.Visible = false
-                    esp.Name.Visible = false
-                    esp.Health.Visible = false
-                    esp.Snap.Visible = false
-                    esp.Active = false
                 end
             else
                 if esp.Active then
@@ -597,26 +638,17 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
     end
 end))
 
--- ====================================================================
--- ⌨️ INPUT BINDINGS & MOVEMENT HOOKS
--- ====================================================================
+-- Keybind Listeners
 table.insert(_G.SakaHubConnections, UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-    if Config.TriggerMode == "Hold Key (Shift)" and input.KeyCode == Config.Key then
-        isAiming = true
-    end
-    if Config.InfJump and input.KeyCode == Enum.KeyCode.Space then
-        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
-    end
+    if input.KeyCode == Config.Key then isAiming = true end
 end))
 
 table.insert(_G.SakaHubConnections, UserInputService.InputEnded:Connect(function(input, gp)
-    if Config.TriggerMode == "Hold Key (Shift)" and input.KeyCode == Config.Key then
-        isAiming = false
-    end
+    if input.KeyCode == Config.Key then isAiming = false end
 end))
 
+-- Movement Hooks
 table.insert(_G.SakaHubConnections, RunService.Heartbeat:Connect(function()
     if Config.Speed and LocalPlayer.Character then
         local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -629,24 +661,22 @@ table.insert(_G.SakaHubConnections, RunService.Heartbeat:Connect(function()
             )
         end
     end
+end))
 
-    if Config.Noclip and LocalPlayer.Character then
-        for _, p in ipairs(LocalPlayer.Character:GetDescendants()) do
-            if p:IsA("BasePart") and p.CanCollide then
-                p.CanCollide = false
-            end
-        end
+table.insert(_G.SakaHubConnections, UserInputService.JumpRequest:Connect(function()
+    if Config.InfJump and LocalPlayer.Character then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
     end
 end))
 
 -- ====================================================================
--- 👑 CRASH-PROOF MODERN SAKA RED NEON USER INTERFACE
+-- 🖥️ NATIVE HIGH-SPEED GUI WITH MINIMIZE & EXPAND SYSTEM
 -- ====================================================================
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "SAKA_HUB_GUI"
 Gui.ResetOnSpawn = false
 Gui.DisplayOrder = 99999
-Gui.IgnoreGuiInset = true
 
 pcall(function()
     if syn and syn.protect_gui then
@@ -660,37 +690,14 @@ pcall(function()
 end)
 if not Gui.Parent then pcall(function() Gui.Parent = LocalPlayer:WaitForChild("PlayerGui", 2) or CoreGui end) end
 
--- 🔘 Floating Draggable Toggle Button
-local FloatToggle = Instance.new("TextButton")
-FloatToggle.Name = "SakaFloatLogo"
-FloatToggle.Size = UDim2.new(0, 48, 0, 48)
-FloatToggle.Position = UDim2.new(0.02, 0, 0.45, 0)
-FloatToggle.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
-FloatToggle.BorderSizePixel = 0
-FloatToggle.Text = "👑"
-FloatToggle.TextSize = 24
-FloatToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-FloatToggle.AutoButtonColor = false
-FloatToggle.Parent = Gui
-
-local FloatCorner = Instance.new("UICorner")
-FloatCorner.CornerRadius = UDim.new(0, 24)
-FloatCorner.Parent = FloatToggle
-
-local FloatStroke = Instance.new("UIStroke")
-FloatStroke.Color = Color3.fromRGB(255, 45, 55)
-FloatStroke.Thickness = 2.0
-FloatStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-FloatStroke.Parent = FloatToggle
-
--- Main Window
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 600, 0, 420)
-MainFrame.Position = UDim2.new(0.5, -300, 0.5, -210)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
+MainFrame.Size = UDim2.new(0, 520, 0, 410)
+MainFrame.Position = UDim2.new(0.5, -260, 0.5, -205)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
 MainFrame.BorderSizePixel = 0
-MainFrame.ClipsDescendants = true
+MainFrame.Active = true
+MainFrame.Draggable = true
 MainFrame.Parent = Gui
 
 local MainCorner = Instance.new("UICorner")
@@ -699,430 +706,485 @@ MainCorner.Parent = MainFrame
 
 local MainStroke = Instance.new("UIStroke")
 MainStroke.Color = Color3.fromRGB(255, 45, 55)
-MainStroke.Thickness = 1.8
-MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+MainStroke.Thickness = 1.5
 MainStroke.Parent = MainFrame
 
--- Draggable Handlers
-local dragging, dragInput, dragStart, startPos
-local function updateDrag(input)
-    local delta = input.Position - dragStart
-    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
+-- Floating Mini Logo
+local MiniLogo = Instance.new("TextButton")
+MiniLogo.Name = "MiniLogo"
+MiniLogo.Size = UDim2.new(0, 50, 0, 50)
+MiniLogo.Position = UDim2.new(0, 20, 0.5, -25)
+MiniLogo.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+MiniLogo.Font = Enum.Font.GothamBold
+MiniLogo.Text = "👑"
+MiniLogo.TextSize = 24
+MiniLogo.Visible = false
+MiniLogo.Active = true
+MiniLogo.Draggable = true
+MiniLogo.Parent = Gui
+local MiniCorner = Instance.new("UICorner")
+MiniCorner.CornerRadius = UDim.new(0, 25)
+MiniCorner.Parent = MiniLogo
+local MiniStroke = Instance.new("UIStroke")
+MiniStroke.Color = Color3.fromRGB(255, 45, 55)
+MiniStroke.Thickness = 2
+MiniStroke.Parent = MiniLogo
 
-MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-
-MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then updateDrag(input) end
+MiniLogo.MouseButton1Click:Connect(function()
+    MiniLogo.Visible = false
+    MainFrame.Visible = true
 end)
 
--- Float Toggle Drag & Click
-local fDragging, fDragInput, fDragStart, fStartPos
-FloatToggle.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        fDragging = true
-        fDragStart = input.Position
-        fStartPos = FloatToggle.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then fDragging = false end
-        end)
-    end
-end)
-FloatToggle.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        fDragInput = input
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if input == fDragInput and fDragging then
-        local delta = input.Position - fDragStart
-        FloatToggle.Position = UDim2.new(fStartPos.X.Scale, fStartPos.X.Offset + delta.X, fStartPos.Y.Scale, fStartPos.Y.Offset + delta.Y)
-    end
-end)
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 42)
+TitleBar.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
 
-FloatToggle.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
-
--- Top Header
-local TopBar = Instance.new("Frame")
-TopBar.Name = "TopBar"
-TopBar.Size = UDim2.new(1, 0, 0, 42)
-TopBar.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
-TopBar.BorderSizePixel = 0
-TopBar.Parent = MainFrame
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Name = "TitleLabel"
-TitleLabel.Size = UDim2.new(0, 350, 1, 0)
-TitleLabel.Position = UDim2.new(0, 16, 0, 0)
+TitleLabel.Size = UDim2.new(1, -95, 1, 0)
+TitleLabel.Position = UDim2.new(0, 15, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "👑 SAKA HUB <font color='#FF2D37'>RIVALS PRO</font> (V14.0 MASTER)"
-TitleLabel.RichText = true
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 15
 TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "👑 SAKA HUB | RIVALS ANTI-BAN PRO ⚡"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 45, 55)
+TitleLabel.TextSize = 14
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Parent = TopBar
+TitleLabel.Parent = TitleBar
 
+-- ➖ Minimize Button [-]
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0, 30, 0, 30)
+MinBtn.Position = UDim2.new(1, -72, 0, 6)
+MinBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.Text = "-"
+MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinBtn.TextSize = 16
+MinBtn.Parent = TitleBar
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinBtn
+
+MinBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    MiniLogo.Visible = true
+end)
+
+-- ❌ Close Button [X]
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Name = "CloseBtn"
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -36, 0, 6)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(28, 30, 40)
-CloseBtn.Text = "✕"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-CloseBtn.TextSize = 14
+CloseBtn.Position = UDim2.new(1, -38, 0, 6)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
 CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.BorderSizePixel = 0
-CloseBtn.Parent = TopBar
-
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 13
+CloseBtn.Parent = TitleBar
 local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 6)
 CloseCorner.Parent = CloseBtn
 
 CloseBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
+    MainFrame.Visible = not MainFrame.Visible
 end)
 
-local MinBtn = Instance.new("TextButton")
-MinBtn.Name = "MinBtn"
-MinBtn.Size = UDim2.new(0, 30, 0, 30)
-MinBtn.Position = UDim2.new(1, -72, 0, 6)
-MinBtn.BackgroundColor3 = Color3.fromRGB(28, 30, 40)
-MinBtn.Text = "−"
-MinBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
-MinBtn.TextSize = 16
-MinBtn.Font = Enum.Font.GothamBold
-MinBtn.BorderSizePixel = 0
-MinBtn.Parent = TopBar
+-- Notification Banner (Bottom of GUI)
+local NotifyLabel = Instance.new("TextLabel")
+NotifyLabel.Size = UDim2.new(1, -20, 0, 20)
+NotifyLabel.Position = UDim2.new(0, 10, 1, -25)
+NotifyLabel.BackgroundTransparency = 1
+NotifyLabel.Font = Enum.Font.GothamMedium
+NotifyLabel.Text = loadedSuccessfully and "💾 โหลดการตั้งค่าล่าสุดสำเร็จ! (Persistent Saved)" or "🛡️ Anti-Ban & Legit Systems Active"
+NotifyLabel.TextColor3 = loadedSuccessfully and Color3.fromRGB(100, 255, 120) or Color3.fromRGB(180, 180, 180)
+NotifyLabel.TextSize = 11
+NotifyLabel.Parent = MainFrame
 
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 6)
-MinCorner.Parent = MinBtn
+-- Sidebar Tabs
+local TabBar = Instance.new("Frame")
+TabBar.Size = UDim2.new(0, 120, 1, -80)
+TabBar.Position = UDim2.new(0, 10, 0, 48)
+TabBar.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+TabBar.BorderSizePixel = 0
+TabBar.Parent = MainFrame
+local TabCorner = Instance.new("UICorner")
+TabCorner.CornerRadius = UDim.new(0, 8)
+TabCorner.Parent = TabBar
 
--- Left Sidebar Tabs
-local Sidebar = Instance.new("Frame")
-Sidebar.Name = "Sidebar"
-Sidebar.Size = UDim2.new(0, 140, 1, -42)
-Sidebar.Position = UDim2.new(0, 0, 0, 42)
-Sidebar.BackgroundColor3 = Color3.fromRGB(15, 17, 24)
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = MainFrame
+local TabListLayout = Instance.new("UIListLayout")
+TabListLayout.Padding = UDim.new(0, 5)
+TabListLayout.Parent = TabBar
 
-local TabContainer = Instance.new("Frame")
-TabContainer.Name = "TabContainer"
-TabContainer.Size = UDim2.new(1, -140, 1, -42)
-TabContainer.Position = UDim2.new(0, 140, 0, 42)
-TabContainer.BackgroundColor3 = Color3.fromRGB(10, 12, 16)
-TabContainer.BorderSizePixel = 0
-TabContainer.Parent = MainFrame
+local ContentArea = Instance.new("Frame")
+ContentArea.Size = UDim2.new(1, -145, 1, -80)
+ContentArea.Position = UDim2.new(0, 135, 0, 48)
+ContentArea.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+ContentArea.BorderSizePixel = 0
+ContentArea.Parent = MainFrame
+local ContentCorner = Instance.new("UICorner")
+ContentCorner.CornerRadius = UDim.new(0, 8)
+ContentCorner.Parent = ContentArea
 
--- Minimize Handler
-local isMinimized = false
-MinBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        MinBtn.Text = "▢"
-        Sidebar.Visible = false
-        TabContainer.Visible = false
-        TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 600, 0, 42)
-        }):Play()
-    else
-        MinBtn.Text = "−"
-        TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 600, 0, 420)
-        }):Play()
-        task.delay(0.18, function()
-            if not isMinimized then
-                Sidebar.Visible = true
-                TabContainer.Visible = true
-            end
-        end)
-    end
-end)
-
-local TabButtons = {}
 local TabPages = {}
+local TabButtons = {}
 
-local function createTab(tabName, icon)
-    local btn = Instance.new("TextButton")
-    btn.Name = tabName .. "Btn"
-    btn.Size = UDim2.new(1, -16, 0, 36)
-    btn.Position = UDim2.new(0, 8, 0, #TabButtons * 42 + 10)
-    btn.BackgroundColor3 = Color3.fromRGB(20, 22, 32)
-    btn.BorderSizePixel = 0
-    btn.Text = icon .. " " .. tabName
-    btn.TextColor3 = Color3.fromRGB(180, 180, 190)
-    btn.TextSize = 13
-    btn.Font = Enum.Font.GothamBold
-    btn.AutoButtonColor = false
-    btn.Parent = Sidebar
-
-    local bCorner = Instance.new("UICorner")
-    bCorner.CornerRadius = UDim.new(0, 6)
-    bCorner.Parent = btn
-
+local function CreateTab(name, icon)
     local page = Instance.new("ScrollingFrame")
-    page.Name = tabName .. "Page"
-    page.Size = UDim2.new(1, -20, 1, -20)
-    page.Position = UDim2.new(0, 10, 0, 10)
+    page.Size = UDim2.new(1, -10, 1, -10)
+    page.Position = UDim2.new(0, 5, 0, 5)
     page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
     page.ScrollBarThickness = 3
     page.ScrollBarImageColor3 = Color3.fromRGB(255, 45, 55)
     page.Visible = false
-    page.Parent = TabContainer
+    page.Parent = ContentArea
 
-    local pageLayout = Instance.new("UIListLayout")
-    pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    pageLayout.Padding = UDim.new(0, 8)
-    pageLayout.Parent = page
-
-    pageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        page.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 20)
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 6)
+    layout.Parent = page
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
     end)
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 34)
+    btn.Position = UDim2.new(0, 5, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+    btn.Font = Enum.Font.GothamMedium
+    btn.Text = icon .. " " .. name
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btn.TextSize = 12
+    btn.Parent = TabBar
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = btn
 
     btn.MouseButton1Click:Connect(function()
-        for name, b in pairs(TabButtons) do
-            b.BackgroundColor3 = Color3.fromRGB(20, 22, 32)
-            b.TextColor3 = Color3.fromRGB(180, 180, 190)
+        for _, p in pairs(TabPages) do p.Visible = false end
+        for _, b in pairs(TabButtons) do
+            b.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+            b.TextColor3 = Color3.fromRGB(200, 200, 200)
         end
-        for name, p in pairs(TabPages) do
-            p.Visible = false
-        end
+        page.Visible = true
         btn.BackgroundColor3 = Color3.fromRGB(255, 45, 55)
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        page.Visible = true
     end)
 
-    table.insert(TabButtons, btn)
-    TabButtons[tabName] = btn
-    TabPages[tabName] = page
+    TabPages[name] = page
+    TabButtons[name] = btn
     return page
 end
 
--- ====================================================================
--- 🛠️ UI COMPONENT BUILDERS (TOGGLES, SLIDERS, BUTTONS)
--- ====================================================================
-local function addToggle(page, labelText, defaultVal, callback)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, -6, 0, 36)
-    container.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
-    container.BorderSizePixel = 0
-    container.Parent = page
+-- 1. ADD TOGGLE COMPONENT
+local function AddToggle(page, label, default, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -5, 0, 34)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+    frame.Parent = page
+    local crn = Instance.new("UICorner")
+    crn.CornerRadius = UDim.new(0, 6)
+    crn.Parent = frame
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = container
+    local txt = Instance.new("TextLabel")
+    txt.Size = UDim2.new(1, -60, 1, 0)
+    txt.Position = UDim2.new(0, 10, 0, 0)
+    txt.BackgroundTransparency = 1
+    txt.Font = Enum.Font.GothamMedium
+    txt.Text = label
+    txt.TextColor3 = Color3.fromRGB(230, 230, 230)
+    txt.TextSize = 12
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.Parent = frame
 
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -60, 1, 0)
-    label.Position = UDim2.new(0, 12, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = labelText
-    label.TextColor3 = Color3.fromRGB(230, 230, 230)
-    label.TextSize = 13
-    label.Font = Enum.Font.GothamMedium
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
-
+    local state = default
     local toggleBtn = Instance.new("TextButton")
     toggleBtn.Size = UDim2.new(0, 44, 0, 22)
-    toggleBtn.Position = UDim2.new(1, -52, 0.5, -11)
-    toggleBtn.BackgroundColor3 = defaultVal and Color3.fromRGB(255, 45, 55) or Color3.fromRGB(35, 38, 50)
-    toggleBtn.BorderSizePixel = 0
-    toggleBtn.Text = ""
-    toggleBtn.AutoButtonColor = false
-    toggleBtn.Parent = container
+    toggleBtn.Position = UDim2.new(1, -50, 0.5, -11)
+    toggleBtn.BackgroundColor3 = state and Color3.fromRGB(255, 45, 55) or Color3.fromRGB(50, 50, 60)
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.Text = state and "ON" or "OFF"
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.TextSize = 10
+    toggleBtn.Parent = frame
+    local tcrn = Instance.new("UICorner")
+    tcrn.CornerRadius = UDim.new(0, 4)
+    tcrn.Parent = toggleBtn
 
-    local tCorner = Instance.new("UICorner")
-    tCorner.CornerRadius = UDim.new(0, 11)
-    tCorner.Parent = toggleBtn
-
-    local dot = Instance.new("Frame")
-    dot.Size = UDim2.new(0, 16, 0, 16)
-    dot.Position = defaultVal and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
-    dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    dot.BorderSizePixel = 0
-    dot.Parent = toggleBtn
-
-    local dCorner = Instance.new("UICorner")
-    dCorner.CornerRadius = UDim.new(0, 8)
-    dCorner.Parent = dot
-
-    local state = defaultVal
     toggleBtn.MouseButton1Click:Connect(function()
         state = not state
-        toggleBtn.BackgroundColor3 = state and Color3.fromRGB(255, 45, 55) or Color3.fromRGB(35, 38, 50)
-        dot.Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+        toggleBtn.BackgroundColor3 = state and Color3.fromRGB(255, 45, 55) or Color3.fromRGB(50, 50, 60)
+        toggleBtn.Text = state and "ON" or "OFF"
         callback(state)
         RequestSaveSettings()
+        NotifyLabel.Text = "💾 บันทึกการตั้งค่าล่าสุดแล้ว!"
+        NotifyLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
     end)
 end
 
-local function addSlider(page, labelText, minVal, maxVal, defaultVal, callback)
-    local container = Instance.new("Frame")
-    container.Size = UDim2.new(1, -6, 0, 46)
-    container.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
-    container.BorderSizePixel = 0
-    container.Parent = page
+-- 2. ADD SLIDER COMPONENT
+local function AddSlider(page, label, min, max, default, unit, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -5, 0, 44)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+    frame.Parent = page
+    local crn = Instance.new("UICorner")
+    crn.CornerRadius = UDim.new(0, 6)
+    crn.Parent = frame
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = container
+    local txt = Instance.new("TextLabel")
+    txt.Size = UDim2.new(0.6, 0, 0, 20)
+    txt.Position = UDim2.new(0, 10, 0, 4)
+    txt.BackgroundTransparency = 1
+    txt.Font = Enum.Font.GothamMedium
+    txt.Text = label
+    txt.TextColor3 = Color3.fromRGB(230, 230, 230)
+    txt.TextSize = 12
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.Parent = frame
 
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -70, 0, 20)
-    label.Position = UDim2.new(0, 12, 0, 4)
-    label.BackgroundTransparency = 1
-    label.Text = labelText
-    label.TextColor3 = Color3.fromRGB(230, 230, 230)
-    label.TextSize = 13
-    label.Font = Enum.Font.GothamMedium
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
+    local valTxt = Instance.new("TextLabel")
+    valTxt.Size = UDim2.new(0.35, 0, 0, 20)
+    valTxt.Position = UDim2.new(0.6, 0, 0, 4)
+    valTxt.BackgroundTransparency = 1
+    valTxt.Font = Enum.Font.GothamBold
+    valTxt.Text = tostring(default) .. " " .. unit
+    valTxt.TextColor3 = Color3.fromRGB(255, 45, 55)
+    valTxt.TextSize = 11
+    valTxt.TextXAlignment = Enum.TextXAlignment.Right
+    valTxt.Parent = frame
 
-    local valLabel = Instance.new("TextLabel")
-    valLabel.Size = UDim2.new(0, 50, 0, 20)
-    valLabel.Position = UDim2.new(1, -60, 0, 4)
-    valLabel.BackgroundTransparency = 1
-    valLabel.Text = tostring(defaultVal)
-    valLabel.TextColor3 = Color3.fromRGB(255, 60, 70)
-    valLabel.TextSize = 13
-    valLabel.Font = Enum.Font.GothamBold
-    valLabel.TextXAlignment = Enum.TextXAlignment.Right
-    valLabel.Parent = container
-
-    local barBg = Instance.new("TextButton")
-    barBg.Size = UDim2.new(1, -24, 0, 8)
-    barBg.Position = UDim2.new(0, 12, 0, 28)
-    barBg.BackgroundColor3 = Color3.fromRGB(35, 38, 50)
-    barBg.BorderSizePixel = 0
-    barBg.Text = ""
-    barBg.AutoButtonColor = false
-    barBg.Parent = container
-
-    local bCorner = Instance.new("UICorner")
-    bCorner.CornerRadius = UDim.new(0, 4)
-    bCorner.Parent = barBg
+    local sliderBar = Instance.new("Frame")
+    sliderBar.Size = UDim2.new(1, -20, 0, 6)
+    sliderBar.Position = UDim2.new(0, 10, 0, 28)
+    sliderBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    sliderBar.BorderSizePixel = 0
+    sliderBar.Parent = frame
+    local sbCrn = Instance.new("UICorner")
+    sbCrn.CornerRadius = UDim.new(0, 3)
+    sbCrn.Parent = sliderBar
 
     local fill = Instance.new("Frame")
-    local initRatio = math.clamp((defaultVal - minVal) / (maxVal - minVal), 0, 1)
-    fill.Size = UDim2.new(initRatio, 0, 1, 0)
+    local pct = math.clamp((default - min) / (max - min), 0, 1)
+    fill.Size = UDim2.new(pct, 0, 1, 0)
     fill.BackgroundColor3 = Color3.fromRGB(255, 45, 55)
     fill.BorderSizePixel = 0
-    fill.Parent = barBg
+    fill.Parent = sliderBar
+    local fCrn = Instance.new("UICorner")
+    fCrn.CornerRadius = UDim.new(0, 3)
+    fCrn.Parent = fill
 
-    local fCorner = Instance.new("UICorner")
-    fCorner.CornerRadius = UDim.new(0, 4)
-    fCorner.Parent = fill
-
-    local sDragging = false
+    local dragging = false
     local function updateSlider(input)
-        local posX = math.clamp(input.Position.X - barBg.AbsolutePosition.X, 0, barBg.AbsoluteSize.X)
-        local ratio = posX / barBg.AbsoluteSize.X
-        local val = math.floor(minVal + (maxVal - minVal) * ratio)
-        fill.Size = UDim2.new(ratio, 0, 1, 0)
-        valLabel.Text = tostring(val)
-        callback(val)
+        local relativeX = math.clamp(input.Position.X - sliderBar.AbsolutePosition.X, 0, sliderBar.AbsoluteSize.X)
+        local newPct = relativeX / sliderBar.AbsoluteSize.X
+        fill.Size = UDim2.new(newPct, 0, 1, 0)
+        local value = math.floor(min + (max - min) * newPct)
+        valTxt.Text = tostring(value) .. " " .. unit
+        callback(value)
         RequestSaveSettings()
+        NotifyLabel.Text = "💾 บันทึกการตั้งค่าล่าสุดแล้ว!"
+        NotifyLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
     end
 
-    barBg.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            sDragging = true
+    sliderBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
             updateSlider(input)
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then sDragging = false end
-            end)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
-        if sDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             updateSlider(input)
         end
     end)
 end
 
-local function addButton(page, text, btnColor, callback)
+-- 3. ADD CHOICE/DROPDOWN COMPONENT
+local function AddChoice(page, label, options, default, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -5, 0, 34)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+    frame.Parent = page
+    local crn = Instance.new("UICorner")
+    crn.CornerRadius = UDim.new(0, 6)
+    crn.Parent = frame
+
+    local txt = Instance.new("TextLabel")
+    txt.Size = UDim2.new(0.5, 0, 1, 0)
+    txt.Position = UDim2.new(0, 10, 0, 0)
+    txt.BackgroundTransparency = 1
+    txt.Font = Enum.Font.GothamMedium
+    txt.Text = label
+    txt.TextColor3 = Color3.fromRGB(230, 230, 230)
+    txt.TextSize = 12
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.Parent = frame
+
+    local currentIdx = 1
+    for i, opt in ipairs(options) do
+        if opt == default then currentIdx = i break end
+    end
+
+    local choiceBtn = Instance.new("TextButton")
+    choiceBtn.Size = UDim2.new(0.45, 0, 0, 24)
+    choiceBtn.Position = UDim2.new(0.52, 0, 0.5, -12)
+    choiceBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 58)
+    choiceBtn.Font = Enum.Font.GothamBold
+    choiceBtn.Text = options[currentIdx]
+    choiceBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    choiceBtn.TextSize = 10
+    choiceBtn.Parent = frame
+    local cCrn = Instance.new("UICorner")
+    cCrn.CornerRadius = UDim.new(0, 4)
+    cCrn.Parent = choiceBtn
+
+    choiceBtn.MouseButton1Click:Connect(function()
+        currentIdx = currentIdx + 1
+        if currentIdx > #options then currentIdx = 1 end
+        choiceBtn.Text = options[currentIdx]
+        callback(options[currentIdx])
+        RequestSaveSettings()
+        NotifyLabel.Text = "💾 บันทึกการตั้งค่าล่าสุดแล้ว!"
+        NotifyLabel.TextColor3 = Color3.fromRGB(100, 255, 120)
+    end)
+end
+
+-- 4. ADD BUTTON COMPONENT
+local function AddButton(page, label, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -6, 0, 36)
-    btn.BackgroundColor3 = btnColor or Color3.fromRGB(25, 28, 38)
-    btn.BorderSizePixel = 0
-    btn.Text = text
+    btn.Size = UDim2.new(1, -5, 0, 34)
+    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    btn.Font = Enum.Font.GothamMedium
+    btn.Text = label
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 13
-    btn.Font = Enum.Font.GothamBold
-    btn.AutoButtonColor = true
+    btn.TextSize = 12
     btn.Parent = page
+    local crn = Instance.new("UICorner")
+    crn.CornerRadius = UDim.new(0, 6)
+    crn.Parent = btn
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = btn
-
-    btn.MouseButton1Click:Connect(callback)
+    btn.MouseButton1Click:Connect(function()
+        pcall(callback)
+    end)
 end
 
 -- ====================================================================
--- 📄 BUILD TABS & CONTENT
+-- 📑 CREATE TABS & ADD ALL CONTROLS
 -- ====================================================================
-local combatPage = createTab("Combat", "🎯")
-local visualsPage = createTab("Visuals", "👁️")
-local movePage = createTab("Movement", "⚡")
-local tpPage = createTab("Teleport", "🚀")
-local miscPage = createTab("Settings", "⚙️")
+local CombatPage = CreateTab("Combat", "🎯")
+local AntiBanPage = CreateTab("Anti-Ban", "🛡️")
+local VisualsPage = CreateTab("Visuals", "👁️")
+local MovementPage = CreateTab("Move", "⚡")
+local TeleportPage = CreateTab("Teleport", "🚀")
+local MiscPage = CreateTab("Misc", "🎁")
 
--- 🎯 COMBAT PAGE (HEAD LOCK MASTER)
-addToggle(combatPage, "Master Aim Lock", Config.AimLock, function(v) Config.AimLock = v end)
-addToggle(combatPage, "⚡ Instant Snap (0ms Head Lock)", Config.InstantSnap, function(v) Config.InstantSnap = v end)
-addToggle(combatPage, "📌 Sticky Lock (เกาะเป้าไม่หลุด)", Config.StickyLock, function(v) Config.StickyLock = v end)
-addToggle(combatPage, "🔮 Target Prediction (ดักความเร็ว)", Config.Prediction, function(v) Config.Prediction = v end)
-addToggle(combatPage, "Show FOV Circle", Config.ShowFOV, function(v) Config.ShowFOV = v end)
-addToggle(combatPage, "Red Aim Lock Tracer Line", Config.ShowAimTracer, function(v) Config.ShowAimTracer = v end)
-addSlider(combatPage, "FOV Radius (Pixels)", 50, 450, Config.FOVRadius, function(v) Config.FOVRadius = v end)
-addSlider(combatPage, "Smoothness (0 = Instant 100%)", 0, 100, Config.Smoothness, function(v) Config.Smoothness = v end)
+-- --------------------------------------------------------------------
+-- 🎯 TAB 1: COMBAT
+-- --------------------------------------------------------------------
+AddToggle(CombatPage, "Master Aim Lock", Config.AimLock, function(v) Config.AimLock = v end)
+AddToggle(CombatPage, "⚡ Instant Snap (0ms Lock)", Config.InstantSnap, function(v) Config.InstantSnap = v end)
+AddToggle(CombatPage, "Sticky Lock (เกาะเป้าไม่หลุด)", Config.StickyLock, function(v) Config.StickyLock = v end)
+AddChoice(CombatPage, "Target Bone", {"Head", "Torso"}, Config.Bone, function(v) Config.Bone = v end)
+AddChoice(CombatPage, "Trigger Mode", {"Hold Key (Shift)", "Hold RMB (Right Click)", "Always On"}, Config.TriggerMode, function(v) Config.TriggerMode = v end)
+AddChoice(CombatPage, "Priority Mode", {"Closest Crosshair", "Closest Distance"}, Config.Priority, function(v) Config.Priority = v end)
+AddSlider(CombatPage, "Lock Smoothness (40=Legit)", 0, 100, Config.Smoothness, "%", function(v) Config.Smoothness = v end)
+AddToggle(CombatPage, "Show FOV Circle", Config.ShowFOV, function(v) Config.ShowFOV = v end)
+AddSlider(CombatPage, "FOV Circle Radius", 20, 400, Config.FOVRadius, "px", function(v) Config.FOVRadius = v end)
+AddToggle(CombatPage, "Aim Lock Tracer (เส้นชี้เป้า)", Config.ShowAimTracer, function(v) Config.ShowAimTracer = v end)
 
--- 👁️ VISUALS PAGE
-addToggle(visualsPage, "Master Player ESP", Config.ESP, function(v) Config.ESP = v end)
-addToggle(visualsPage, "2D Bounding Boxes", Config.ESPBoxes, function(v) Config.ESPBoxes = v end)
-addToggle(visualsPage, "Name & Distance ESP", Config.ESPNames, function(v) Config.ESPNames = v end)
-addToggle(visualsPage, "Health Bar & Number ESP", Config.ESPHealth, function(v) Config.ESPHealth = v end)
-addToggle(visualsPage, "Snaplines (Tracer to Target)", Config.ESPSnaplines, function(v) Config.ESPSnaplines = v end)
-addSlider(visualsPage, "Max ESP Distance (Studs)", 50, 800, Config.MaxDist, function(v) Config.MaxDist = v end)
+-- --------------------------------------------------------------------
+-- 🛡️ TAB 2: ANTI-BAN & LEGIT PROTECTIONS
+-- --------------------------------------------------------------------
+AddToggle(AntiBanPage, "🛡️ Wall Check (ไม่ล็อคทะลุกำแพง)", Config.WallCheck, function(v)
+    Config.WallCheck = v
+    NotifyLabel.Text = v and "🛡️ Wall Check Active (Safe)" or "⚠️ Wall Check Disabled"
+    NotifyLabel.TextColor3 = v and Color3.fromRGB(100, 255, 120) or Color3.fromRGB(255, 100, 100)
+end)
 
--- ⚡ MOVEMENT PAGE
-addToggle(movePage, "Speed Boost Enabled", Config.Speed, function(v) Config.Speed = v end)
-addSlider(movePage, "WalkSpeed Value", 16, 80, Config.WalkSpeed, function(v) Config.WalkSpeed = v end)
-addToggle(movePage, "Infinite Jump in Air", Config.InfJump, function(v) Config.InfJump = v end)
-addToggle(movePage, "Noclip (Walk Through Walls)", Config.Noclip, function(v) Config.Noclip = v end)
-addButton(movePage, "🔄 Instant Respawn", Color3.fromRGB(180, 50, 50), function()
+AddToggle(AntiBanPage, "🎲 Hitbox Randomizer (สุ่มหัว/ตัวกันแบน)", Config.RandomHitbox, function(v)
+    Config.RandomHitbox = v
+    NotifyLabel.Text = v and "🎲 70% Head / 30% Torso (Legit Stats)" or "🎯 Fixed Bone Mode"
+    NotifyLabel.TextColor3 = v and Color3.fromRGB(100, 255, 120) or Color3.fromRGB(200, 200, 200)
+end)
+
+AddToggle(AntiBanPage, "✨ Humanize Smooth Curves (เล็งเนียน)", Config.Humanize, function(v)
+    Config.Humanize = v
+end)
+
+AddButton(AntiBanPage, "🟢 โหมดเซฟสูงสุด (Apply Legit / Safe Mode)", function()
+    Config.AimLock = true
+    Config.InstantSnap = false
+    Config.Smoothness = 50
+    Config.FOVRadius = 130
+    Config.WallCheck = true
+    Config.RandomHitbox = true
+    Config.Humanize = true
+    Config.Speed = false
+    RequestSaveSettings()
+    NotifyLabel.Text = "🟢 ปรับเป็นโหมดเซฟสูงสุด (Legit) เรียบร้อยแล้ว!"
+    NotifyLabel.TextColor3 = Color3.fromRGB(0, 255, 120)
+end)
+
+AddButton(AntiBanPage, "🔴 โหมดตึงโหด (Apply Rage / 0ms Full Lock)", function()
+    Config.AimLock = true
+    Config.InstantSnap = true
+    Config.Smoothness = 0
+    Config.FOVRadius = 260
+    Config.WallCheck = false
+    Config.RandomHitbox = false
+    RequestSaveSettings()
+    NotifyLabel.Text = "🔴 ปรับเป็นโหมดดุดัน (Rage 0ms) เรียบร้อยแล้ว!"
+    NotifyLabel.TextColor3 = Color3.fromRGB(255, 50, 60)
+end)
+
+-- --------------------------------------------------------------------
+-- 👁️ TAB 3: VISUALS & ESP
+-- --------------------------------------------------------------------
+AddToggle(VisualsPage, "Red Top Screen Bar", Config.ShowTopLine, function(v)
+    Config.ShowTopLine = v
+    TopRedLine.Visible = v
+end)
+AddToggle(VisualsPage, "Master Player ESP", Config.ESP, function(v) Config.ESP = v end)
+AddToggle(VisualsPage, "ESP Boxes (กรอบสี่เหลี่ยม)", Config.ESPBoxes, function(v) Config.ESPBoxes = v end)
+AddToggle(VisualsPage, "ESP Names & Distance (ชื่อ & ระยะ)", Config.ESPNames, function(v) Config.ESPNames = v end)
+AddToggle(VisualsPage, "ESP Health Bar (หลอดเลือด)", Config.ESPHealth, function(v) Config.ESPHealth = v end)
+AddToggle(VisualsPage, "ESP Snaplines (เส้นจากขอบจอบน)", Config.ESPSnaplines, function(v) Config.ESPSnaplines = v end)
+AddSlider(VisualsPage, "ESP Max Distance", 100, 700, Config.MaxDist, "Studs", function(v) Config.MaxDist = v end)
+AddToggle(VisualsPage, "🚀 FPS & Map Booster", Config.FPSBooster, function(v)
+    Config.FPSBooster = v
+    if v then applyFPSBoost() end
+end)
+AddToggle(VisualsPage, "🛡️ Anti-Flashbang / Anti-Blind", Config.AntiFlashbang, function(v) Config.AntiFlashbang = v end)
+
+-- --------------------------------------------------------------------
+-- ⚡ TAB 4: MOVEMENT
+-- --------------------------------------------------------------------
+AddToggle(MovementPage, "Speed Hack", Config.Speed, function(v) Config.Speed = v end)
+AddSlider(MovementPage, "WalkSpeed Value (28-32=Safe)", 16, 60, Config.WalkSpeed, "Speed", function(v) Config.WalkSpeed = v end)
+AddToggle(MovementPage, "Infinite Jump", Config.InfJump, function(v) Config.InfJump = v end)
+AddButton(MovementPage, "🔄 Instant Respawn", function()
     pcall(function()
-        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        if remotes and remotes:FindFirstChild("Replication") and remotes.Replication:FindFirstChild("Fighter") then
-            local r = remotes.Replication.Fighter:FindFirstChild("ResetCharacter")
-            if r then r:FireServer() end
-        end
+        local r = ReplicatedStorage.Remotes.Replication.Fighter.ResetCharacter
+        if r then r:FireServer() end
     end)
 end)
 
--- 🚀 TELEPORT PAGE (LOBBY & ARENA)
+-- --------------------------------------------------------------------
+-- 🚀 TAB 5: TELEPORTS
+-- --------------------------------------------------------------------
 local Spawns = {
     ["Hub Center"] = CFrame.new(109, -680, 1184),
     ["Duels Spawn"] = CFrame.new(186, -677.5, 1184),
@@ -1132,41 +1194,67 @@ local Spawns = {
     ["NPC: Nosniy (Weapons)"] = CFrame.new(86, -676, 1110)
 }
 for name, cf in pairs(Spawns) do
-    addButton(tpPage, "🚀 TP: " .. name, Color3.fromRGB(28, 30, 40), function()
+    AddButton(TeleportPage, "🚀 TP: " .. name, function()
         local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if root then root.CFrame = cf + Vector3.new(0, 3, 0) end
     end)
 end
 
--- ⚙️ SETTINGS PAGE
-addToggle(miscPage, "FPS Booster (Max Performance)", Config.FPSBooster, function(v)
-    Config.FPSBooster = v
-    if v then applyFPSBoost() end
+-- --------------------------------------------------------------------
+-- 🎁 TAB 6: MISC
+-- --------------------------------------------------------------------
+AddButton(MiscPage, "🎁 Claim All Free Gifts & Pass", function()
+    pcall(function()
+        local remotes = ReplicatedStorage.Remotes.Data
+        if remotes:FindFirstChild("ClaimBattlePassReward") then remotes.ClaimBattlePassReward:FireServer() end
+        if remotes:FindFirstChild("ClaimWelcomeBackGift") then remotes.ClaimWelcomeBackGift:FireServer() end
+        if remotes:FindFirstChild("ClaimGroupReward") then remotes.ClaimGroupReward:FireServer() end
+        if remotes:FindFirstChild("ClaimLikeReward") then remotes.ClaimLikeReward:FireServer() end
+        if remotes:FindFirstChild("ClaimFavoriteReward") then remotes.ClaimFavoriteReward:FireServer() end
+        if remotes:FindFirstChild("ClaimNotificationsReward") then remotes.ClaimNotificationsReward:FireServer() end
+    end)
 end)
-addToggle(miscPage, "Anti-Flashbang / Anti-Blind", Config.AntiFlashbang, function(v)
-    Config.AntiFlashbang = v
+
+AddButton(MiscPage, "🔀 Server Hop (สุ่มย้ายเซิร์ฟเวอร์)", function()
+    pcall(function()
+        local res = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        if res and res.data then
+            for _, s in ipairs(res.data) do
+                if s.id ~= game.JobId and s.playing < s.maxPlayers then
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer)
+                    return
+                end
+            end
+        end
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
 end)
-addToggle(miscPage, "Top Red Screen Line", Config.ShowTopLine, function(v)
-    Config.ShowTopLine = v
-    TopRedLine.Visible = v
+
+AddButton(MiscPage, "🔄 Rejoin Current Server", function()
+    TeleportService:Teleport(game.PlaceId, LocalPlayer)
 end)
-addButton(miscPage, "💾 Save Settings Now", Color3.fromRGB(30, 140, 70), function()
+
+AddButton(MiscPage, "💾 Save Settings to Disk", function()
     RequestSaveSettings()
 end)
-addButton(miscPage, "🧹 Unload & Clean SAKA HUB", Color3.fromRGB(180, 40, 40), function()
-    if _G.SakaHubCleanup then _G.SakaHubCleanup() end
+
+AddButton(MiscPage, "🔄 Reset Settings to Default", function()
+    pcall(function()
+        if delfile and isfile and isfile(ConfigFileName) then delfile(ConfigFileName) end
+    end)
 end)
 
--- Default Active Tab
+-- Default Open Combat Tab
+TabPages["Combat"].Visible = true
 TabButtons["Combat"].BackgroundColor3 = Color3.fromRGB(255, 45, 55)
 TabButtons["Combat"].TextColor3 = Color3.fromRGB(255, 255, 255)
-TabPages["Combat"].Visible = true
 
--- Toggle Keybind [RightControl]
-table.insert(_G.SakaHubConnections, UserInputService.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.RightControl then
+-- Toggle Menu Key (RightControl)
+table.insert(_G.SakaHubConnections, UserInputService.InputBegan:Connect(function(input, gp)
+    if not gp and input.KeyCode == Enum.KeyCode.RightControl then
         MainFrame.Visible = not MainFrame.Visible
+        if MainFrame.Visible then MiniLogo.Visible = false end
     end
 end))
 
-print("👑 [SAKA HUB] RIVALS V14.0 Master (Match & Lobby Edition) Successfully Loaded!")
+print("👑 [SAKA HUB] RIVALS Anti-Ban & Legit Edition V14.0 Loaded Successfully!")
