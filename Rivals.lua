@@ -1,7 +1,7 @@
 -- ====================================================================
--- 👑 SAKA HUB | RIVALS (ULTIMATE ANTI-BAN & LEGIT/RAGE EDITION V14.0)
--- 🛡️ BUILT-IN ANTI-BAN & ANTI-REPORT SYSTEM (WALL CHECK, LEGIT SMOOTH, HITBOX RANDOMIZER)
--- ⚡ 144+ FPS ULTRA-SMOOTH NATIVE ENGINE (ZERO FREEZE, ZERO LAG)
+-- 👑 SAKA HUB | RIVALS (ULTIMATE PURE EDITION V13.0)
+-- 🚀 100% NATIVE HIGH-SPEED ENGINE (CLEAN & PURE ZERO-LAG)
+-- 🎯 COMBAT | 👁️ VISUALS & ESP | ⚡ MOVEMENT | 🚀 TELEPORT | 🎁 MISC
 -- 🔴 RED TOP-SCREEN BORDER & RED AIM LOCK TRACER
 -- 💾 PERSISTENT AUTO-SAVE & AUTO-LOAD SYSTEM
 -- ⌨️ GUI TOGGLE: Press [RightControl] or Click Floating Logo / Buttons
@@ -78,47 +78,38 @@ table.insert(_G.SakaHubConnections, LocalPlayer.Idled:Connect(function()
 end))
 
 -- ====================================================================
--- ⚙️ CONFIGURATION & PERSISTENT AUTO-SAVE
+-- ⚙️ CONFIGURATION & VERIFIED PERSISTENT AUTO-SAVE
 -- ====================================================================
 local ConfigFileName = "SAKAHUB_RIVALS_Settings.json"
 
 local Config = {
-    -- 🎯 Combat Settings
+    -- 🎯 Combat
     AimLock = true,
-    InstantSnap = false,        -- ⚡ Instant Snap
-    StickyLock = true,          -- 📌 Stick to current target
+    StickyLock = true,
     TriggerMode = "Hold Key (Shift)", -- "Hold Key (Shift)", "Hold RMB (Right Click)", "Always On"
     Key = Enum.KeyCode.LeftShift,
-    Smoothness = 45,            -- 0 = Instant, 10-100 = Smooth
-    Priority = "Closest Crosshair", -- "Closest Distance", "Closest Crosshair"
-    Bone = "Head",              -- "Head", "Torso", "Randomized"
-    HeadOffset = 0.15,
-    Prediction = true,
+    Smoothness = 65, -- 10 to 100%
+    Priority = "Closest Distance", -- "Closest Distance", "Closest Crosshair"
+    Bone = "Head", -- "Head", "Torso"
     ShowFOV = true,
-    FOVRadius = 160,            -- 20 to 400 px
-    ShowAimTracer = true,       -- 🔴 Red Line to target
-
-    -- 🛡️ Anti-Ban & Legit Protections
-    WallCheck = true,           -- 🛡️ Only lock if target is not behind walls (Anti-Report)
-    RandomHitbox = true,        -- 🎲 70% Head / 30% Torso (Prevents 100% HS stat bans)
-    Humanize = true,            -- ✨ Micro-smoothing easing curves
+    FOVRadius = 180, -- 20 to 400 px
+    ShowAimTracer = true, -- 🔴 Red Line from top of screen to current target
 
     -- 👁️ Visuals & ESP
     ShowTopLine = true,
-    ESP = true,
+    ESP = false,
     ESPBoxes = true,
     ESPNames = true,
     ESPHealth = true,
     ESPSnaplines = false,
-    MaxDist = 500,
+    MaxDist = 350,
     FPSBooster = true,
     AntiFlashbang = true,
 
-    -- ⚡ Movement (Safe Limits)
+    -- ⚡ Movement
     Speed = false,
-    WalkSpeed = 28,             -- Safe speed (24-32 avoids server rubberband kicks)
-    InfJump = false,
-    Noclip = false
+    WalkSpeed = 28,
+    InfJump = false
 }
 
 -- Safe Async Auto-Save
@@ -172,7 +163,7 @@ local function applyFPSBoost()
         Lighting.FogEnd = 9e9
         Lighting.Brightness = 2
         for _, v in ipairs(Lighting:GetChildren()) do
-            if v:IsA("PostProcessEffect") or v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
+            if v:IsA("PostProcessProcessEffect") or v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
                 v.Enabled = false
             end
         end
@@ -183,35 +174,33 @@ local function applyFPSBoost()
         end
     end)
 end
+
 if Config.FPSBooster then applyFPSBoost() end
 
 -- 🛡️ Anti-Flashbang / Anti-Blind Hook
 pcall(function()
-    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-    if remotes then
-        local rep = remotes:FindFirstChild("Replication")
-        if rep then
-            local fighter = rep:FindFirstChild("Fighter")
-            if fighter then
-                local blindEffect = fighter:FindFirstChild("BlindedEffect")
-                if blindEffect and blindEffect:IsA("RemoteEvent") then
-                    table.insert(_G.SakaHubConnections, blindEffect.OnClientEvent:Connect(function()
-                        if Config.AntiFlashbang then
-                            local pGui = LocalPlayer:FindFirstChild("PlayerGui")
-                            if pGui then
-                                for _, g in ipairs(pGui:GetChildren()) do
-                                    if string.find(string.lower(g.Name), "flash") or string.find(string.lower(g.Name), "blind") then
-                                        g.Enabled = false
-                                    end
-                                end
-                            end
+    local blindEffect = ReplicatedStorage:FindFirstChild("Remotes") and 
+                        ReplicatedStorage.Remotes:FindFirstChild("Replication") and 
+                        ReplicatedStorage.Remotes.Replication:FindFirstChild("Fighter") and 
+                        ReplicatedStorage.Remotes.Replication.Fighter:FindFirstChild("BlindedEffect")
+    if blindEffect and blindEffect:IsA("RemoteEvent") then
+        table.insert(_G.SakaHubConnections, blindEffect.OnClientEvent:Connect(function()
+            if Config.AntiFlashbang then
+                local pGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if pGui then
+                    for _, g in ipairs(pGui:GetChildren()) do
+                        if string.find(string.lower(g.Name), "flash") or string.find(string.lower(g.Name), "blind") then
+                            g.Enabled = false
                         end
-                    end))
+                    end
                 end
             end
-        end
+        end))
     end
 end)
+
+local isAiming = false
+local currentTarget = nil
 
 -- ====================================================================
 -- 🔴 RED TOP-SCREEN BORDER GUI (0% CPU COST)
@@ -232,7 +221,7 @@ pcall(function()
         TopBarGui.Parent = CoreGui
     end
 end)
-if not TopBarGui.Parent then pcall(function() TopBarGui.Parent = LocalPlayer:WaitForChild("PlayerGui", 2) or CoreGui end) end
+if not TopBarGui.Parent then pcall(function() TopBarGui.Parent = LocalPlayer.PlayerGui end) end
 
 local TopRedLine = Instance.new("Frame")
 TopRedLine.Name = "TopRedLine"
@@ -244,7 +233,7 @@ TopRedLine.Visible = Config.ShowTopLine ~= false
 TopRedLine.Parent = TopBarGui
 
 -- ====================================================================
--- 🎯 DRAWING OBJECTS (FOV CIRCLE & AIM TRACER)
+-- 🎯 ULTRA-LIGHT DRAWING OBJECTS
 -- ====================================================================
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1.5
@@ -254,6 +243,7 @@ FOVCircle.Filled = false
 FOVCircle.Visible = false
 table.insert(_G.SakaHubDrawings, FOVCircle)
 
+-- 🔴 Red Lock Tracer from top of screen to target
 local LockTracer = Drawing.new("Line")
 LockTracer.Thickness = 2.0
 LockTracer.Color = Color3.fromRGB(255, 45, 55)
@@ -261,86 +251,17 @@ LockTracer.Transparency = 0.95
 LockTracer.Visible = false
 table.insert(_G.SakaHubDrawings, LockTracer)
 
-local LockText = Drawing.new("Text")
-LockText.Size = 13
-LockText.Center = true
-LockText.Outline = true
-LockText.Color = Color3.fromRGB(255, 60, 70)
-LockText.Visible = false
-table.insert(_G.SakaHubDrawings, LockText)
-
--- ====================================================================
--- 🛡️ VISIBLE / WALL CHECK (ANTI-REPORT)
--- ====================================================================
-local function isPartVisible(part)
-    if not part then return false end
-    if not Config.WallCheck then return true end
-
-    local char = LocalPlayer.Character
-    local targetChar = part.Parent
-    if not char or not targetChar then return false end
-
-    local origin = Camera.CFrame.Position
-    local destination = part.Position
-    local dir = destination - origin
-
-    local params = RaycastParams.new()
-    params.FilterType = RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {char, targetChar, Camera}
-    params.IgnoreWater = true
-
-    local result = Workspace:Raycast(origin, dir, params)
-    return result == nil -- If nothing blocked the ray, target is visible!
-end
-
--- ====================================================================
--- 🔍 TARGET ACQUISITION & HITBOX SELECTION
--- ====================================================================
-local isAiming = false
-local currentTarget = nil
-
 local function getTargetPart(char)
     if not char then return nil end
     local head = char:FindFirstChild("Head")
-    local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
-
-    -- 🎲 Random Hitbox Mode (70% Head / 30% Torso to keep realistic stats)
-    if Config.RandomHitbox then
-        local roll = math.random(1, 100)
-        if roll <= 70 then
-            return head or root
-        else
-            return root or head
-        end
-    end
-
-    if Config.Bone == "Head" then
-        return head or root
-    else
-        return root or head
-    end
-end
-
-local function getPredictedPos(targetPart)
-    if not targetPart then return nil end
-    local pos = targetPart.Position
-    if targetPart.Name == "Head" then
-        pos = pos + Vector3.new(0, Config.HeadOffset or 0.15, 0)
-    end
-    if Config.Prediction and targetPart.AssemblyLinearVelocity then
-        local myPos = Camera.CFrame.Position
-        local dist = (pos - myPos).Magnitude
-        local leadTime = dist / 1800
-        pos = pos + (targetPart.AssemblyLinearVelocity * leadTime)
-    end
-    return pos
+    local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso")
+    return Config.Bone == "Head" and (head or root) or (root or head)
 end
 
 local function findBestTarget()
-    local myChar = LocalPlayer.Character
-    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     local myPos = myRoot and myRoot.Position or Camera.CFrame.Position
-    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local mousePos = UserInputService:GetMouseLocation()
     local camPos = Camera.CFrame.Position
     local camLook = Camera.CFrame.LookVector
 
@@ -353,24 +274,14 @@ local function findBestTarget()
             if hum and hum.Health > 0 then
                 local part = getTargetPart(plr.Character)
                 if part and (part.Position - camPos):Dot(camLook) > 0 then
-                    -- 🛡️ Wall Check: Only target visible enemies
-                    if not Config.WallCheck or isPartVisible(part) then
-                        local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
-                        if onScreen and sp.Z > 0 then
-                            local fovDist = (Vector2.new(sp.X, sp.Y) - screenCenter).Magnitude
-                            local dist3D = (part.Position - myPos).Magnitude
-
-                            if fovDist <= Config.FOVRadius and dist3D <= Config.MaxDist then
-                                local score = Config.Priority == "Closest Crosshair" and fovDist or dist3D
-                                if score < bestScore then
-                                    bestScore = score
-                                    best = {
-                                        Part = part,
-                                        Player = plr,
-                                        Humanoid = hum,
-                                        Character = plr.Character
-                                    }
-                                end
+                    local sp, onScreen = Camera:WorldToViewportPoint(part.Position)
+                    if onScreen then
+                        local fovDist = (Vector2.new(sp.X, sp.Y) - mousePos).Magnitude
+                        if fovDist <= Config.FOVRadius then
+                            local score = Config.Priority == "Closest Distance" and (part.Position - myPos).Magnitude or fovDist
+                            if score < bestScore then
+                                bestScore = score
+                                best = part
                             end
                         end
                     end
@@ -391,7 +302,7 @@ local function isLockActive()
 end
 
 -- ====================================================================
--- 👁️ LIGHTWEIGHT ESP ENGINE
+-- 👁️ LIGHTWEIGHT ESP
 -- ====================================================================
 local ESPTable = {}
 
@@ -404,26 +315,17 @@ local function addESP(plr)
     box.Visible = false
     table.insert(_G.SakaHubDrawings, box)
 
-    local boxOutline = Drawing.new("Square")
-    boxOutline.Thickness = 3
-    boxOutline.Filled = false
-    boxOutline.Color = Color3.fromRGB(0, 0, 0)
-    boxOutline.Visible = false
-    table.insert(_G.SakaHubDrawings, boxOutline)
-
     local name = Drawing.new("Text")
     name.Size = 13
     name.Center = true
-    name.Outline = true
+    name.Outline = false
     name.Color = Color3.fromRGB(255, 255, 255)
     name.Visible = false
     table.insert(_G.SakaHubDrawings, name)
 
-    local health = Drawing.new("Text")
-    health.Size = 12
-    health.Center = true
-    health.Outline = true
-    health.Color = Color3.fromRGB(80, 255, 120)
+    local health = Drawing.new("Line")
+    health.Thickness = 2
+    health.Color = Color3.fromRGB(0, 255, 120)
     health.Visible = false
     table.insert(_G.SakaHubDrawings, health)
 
@@ -434,7 +336,7 @@ local function addESP(plr)
     snap.Visible = false
     table.insert(_G.SakaHubDrawings, snap)
 
-    ESPTable[plr] = {Box = box, BoxOutline = boxOutline, Name = name, Health = health, Snap = snap, Active = false}
+    ESPTable[plr] = {Box = box, Name = name, Health = health, Snap = snap, Active = false}
 end
 
 for _, p in ipairs(Players:GetPlayers()) do addESP(p) end
@@ -443,7 +345,6 @@ table.insert(_G.SakaHubConnections, Players.PlayerRemoving:Connect(function(p)
     if ESPTable[p] then
         pcall(function()
             ESPTable[p].Box:Remove()
-            ESPTable[p].BoxOutline:Remove()
             ESPTable[p].Name:Remove()
             ESPTable[p].Health:Remove()
             ESPTable[p].Snap:Remove()
@@ -456,31 +357,31 @@ end))
 -- ⚡ 144+ FPS UNIFIED RENDER LOOP
 -- ====================================================================
 table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
-    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    local topOrigin = Vector2.new(Camera.ViewportSize.X / 2, 0)
+    local mousePos = UserInputService:GetMouseLocation()
+    local vp = Camera.ViewportSize
+    local topOrigin = Vector2.new(vp.X / 2, 0)
     local camPos = Camera.CFrame.Position
     local camLook = Camera.CFrame.LookVector
 
     -- 1. FOV Circle
     if Config.ShowFOV and Config.AimLock then
-        FOVCircle.Position = screenCenter
+        FOVCircle.Position = mousePos
         FOVCircle.Radius = Config.FOVRadius
-        FOVCircle.Visible = true
+        if not FOVCircle.Visible then FOVCircle.Visible = true end
     else
-        FOVCircle.Visible = false
+        if FOVCircle.Visible then FOVCircle.Visible = false end
     end
 
     -- 2. Aim Lock Engine
     local activeLock = isLockActive()
     if activeLock then
         local target = nil
-        if Config.StickyLock and currentTarget and currentTarget.Character and currentTarget.Character.Parent and currentTarget.Humanoid and currentTarget.Humanoid.Health > 0 then
-            local part = getTargetPart(currentTarget.Character)
-            if part and (part.Position - camPos):Dot(camLook) > 0 then
-                if not Config.WallCheck or isPartVisible(part) then
-                    local _, onScreen = Camera:WorldToViewportPoint(part.Position)
-                    if onScreen then target = currentTarget end
-                end
+        if Config.StickyLock and currentTarget and currentTarget.Parent and currentTarget:IsA("BasePart") then
+            local model = currentTarget.Parent
+            local hum = model:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 and (currentTarget.Position - camPos):Dot(camLook) > 0 then
+                local _, onScreen = Camera:WorldToViewportPoint(currentTarget.Position)
+                if onScreen then target = currentTarget end
             end
         end
 
@@ -489,46 +390,39 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
             currentTarget = target
         end
 
-        if target and target.Part then
-            local targetPos = getPredictedPos(target.Part)
-            if targetPos then
-                local currentCFrame = Camera.CFrame
-                local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
-
-                if Config.InstantSnap or Config.Smoothness <= 2 then
-                    Camera.CFrame = targetCFrame
-                else
-                    -- ✨ Humanized Smooth Interpolation Curve
-                    local rawSmooth = math.clamp((100 - Config.Smoothness) / 100, 0.05, 0.95)
-                    local smooth = Config.Humanize and (rawSmooth * 0.75) or rawSmooth
-                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, smooth)
-                end
-
-                -- Tracer Line & Target Info
+        if target then
+            local sp, onScreen = Camera:WorldToViewportPoint(target.Position)
+            if onScreen then
+                -- 🔴 Red Lock Tracer from Top of Screen to Target
                 if Config.ShowAimTracer then
-                    local sp, onScreen = Camera:WorldToViewportPoint(targetPos)
-                    if onScreen then
-                        LockTracer.From = topOrigin
-                        LockTracer.To = Vector2.new(sp.X, sp.Y)
-                        LockTracer.Visible = true
-
-                        LockText.Position = Vector2.new(sp.X, sp.Y - 22)
-                        LockText.Text = string.format("🎯 [%s] %s | %d HP", target.Part.Name, target.Player.DisplayName or target.Player.Name, math.floor(target.Humanoid.Health))
-                        LockText.Visible = true
-                    else
-                        LockTracer.Visible = false
-                        LockText.Visible = false
-                    end
+                    LockTracer.From = topOrigin
+                    LockTracer.To = Vector2.new(sp.X, sp.Y)
+                    if not LockTracer.Visible then LockTracer.Visible = true end
+                else
+                    if LockTracer.Visible then LockTracer.Visible = false end
                 end
+
+                local dx = sp.X - mousePos.X
+                local dy = sp.Y - mousePos.Y
+                local smooth = math.clamp(Config.Smoothness / 100, 0.05, 1.0)
+
+                if mousemoverel then
+                    local moveX = math.clamp(dx * smooth, -30, 30)
+                    local moveY = math.clamp(dy * smooth, -30, 30)
+                    mousemoverel(moveX, moveY)
+                else
+                    local targetCF = CFrame.lookAt(camPos, target.Position)
+                    Camera.CFrame = Camera.CFrame:Lerp(targetCF, smooth)
+                end
+            else
+                if LockTracer.Visible then LockTracer.Visible = false end
             end
         else
-            LockTracer.Visible = false
-            LockText.Visible = false
+            if LockTracer.Visible then LockTracer.Visible = false end
         end
     else
         currentTarget = nil
-        LockTracer.Visible = false
-        LockText.Visible = false
+        if LockTracer.Visible then LockTracer.Visible = false end
     end
 
     -- 3. ESP Engine
@@ -546,15 +440,15 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
                 if dist <= Config.MaxDist then
                     local sp, onScreen = Camera:WorldToViewportPoint(root.Position)
                     if onScreen and sp.Z > 1 then
-                        local headPos = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 2.7, 0))
-                        local legPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3.2, 0))
-                        local boxHeight = math.abs(headPos.Y - legPos.Y)
-                        local boxWidth = boxHeight * 0.62
+                        local h = math.clamp(1900 / sp.Z, 12, 380)
+                        local w = h * 0.62
+                        local themeCol = Color3.fromRGB(255, 45, 55)
 
                         -- Snaplines
                         if Config.ESPSnaplines then
                             esp.Snap.From = topOrigin
-                            esp.Snap.To = Vector2.new(sp.X, sp.Y - boxHeight / 2)
+                            esp.Snap.To = Vector2.new(sp.X, sp.Y - h / 2)
+                            esp.Snap.Color = themeCol
                             esp.Snap.Visible = true
                         else
                             esp.Snap.Visible = false
@@ -562,31 +456,30 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
 
                         -- Boxes
                         if Config.ESPBoxes then
-                            esp.Box.Size = Vector2.new(boxWidth, boxHeight)
-                            esp.Box.Position = Vector2.new(sp.X - boxWidth / 2, sp.Y - boxHeight / 2)
+                            esp.Box.Size = Vector2.new(w, h)
+                            esp.Box.Position = Vector2.new(sp.X - w / 2, sp.Y - h / 2)
+                            esp.Box.Color = themeCol
                             esp.Box.Visible = true
-
-                            esp.BoxOutline.Size = Vector2.new(boxWidth, boxHeight)
-                            esp.BoxOutline.Position = Vector2.new(sp.X - boxWidth / 2, sp.Y - boxHeight / 2)
-                            esp.BoxOutline.Visible = true
                         else
                             esp.Box.Visible = false
-                            esp.BoxOutline.Visible = false
                         end
 
                         -- Names & Distance
                         if Config.ESPNames then
                             esp.Name.Text = string.format("%s [%dm]", plr.DisplayName, math.floor(dist))
-                            esp.Name.Position = Vector2.new(sp.X, sp.Y - boxHeight / 2 - 16)
+                            esp.Name.Color = themeCol
+                            esp.Name.Position = Vector2.new(sp.X, sp.Y - h / 2 - 15)
                             esp.Name.Visible = true
                         else
                             esp.Name.Visible = false
                         end
 
-                        -- Health
+                        -- Health Bar
                         if Config.ESPHealth then
-                            esp.Health.Text = string.format("%d HP", math.floor(hum.Health))
-                            esp.Health.Position = Vector2.new(sp.X, sp.Y + boxHeight / 2 + 3)
+                            local hpPct = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
+                            esp.Health.From = Vector2.new(sp.X - w / 2 - 4, sp.Y + h / 2)
+                            esp.Health.To = Vector2.new(sp.X - w / 2 - 4, (sp.Y + h / 2) - (h * hpPct))
+                            esp.Health.Color = Color3.fromRGB(math.floor(255 * (1 - hpPct)), math.floor(255 * hpPct), 60)
                             esp.Health.Visible = true
                         else
                             esp.Health.Visible = false
@@ -596,7 +489,6 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
                     else
                         if esp.Active then
                             esp.Box.Visible = false
-                            esp.BoxOutline.Visible = false
                             esp.Name.Visible = false
                             esp.Health.Visible = false
                             esp.Snap.Visible = false
@@ -606,7 +498,6 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
                 else
                     if esp.Active then
                         esp.Box.Visible = false
-                        esp.BoxOutline.Visible = false
                         esp.Name.Visible = false
                         esp.Health.Visible = false
                         esp.Snap.Visible = false
@@ -616,7 +507,6 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
             else
                 if esp.Active then
                     esp.Box.Visible = false
-                    esp.BoxOutline.Visible = false
                     esp.Name.Visible = false
                     esp.Health.Visible = false
                     esp.Snap.Visible = false
@@ -628,7 +518,6 @@ table.insert(_G.SakaHubConnections, RunService.RenderStepped:Connect(function()
         for _, esp in pairs(ESPTable) do
             if esp.Active then
                 esp.Box.Visible = false
-                esp.BoxOutline.Visible = false
                 esp.Name.Visible = false
                 esp.Health.Visible = false
                 esp.Snap.Visible = false
@@ -641,11 +530,15 @@ end))
 -- Keybind Listeners
 table.insert(_G.SakaHubConnections, UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-    if input.KeyCode == Config.Key then isAiming = true end
+    if input.KeyCode == Config.Key then
+        isAiming = true
+    end
 end))
 
 table.insert(_G.SakaHubConnections, UserInputService.InputEnded:Connect(function(input, gp)
-    if input.KeyCode == Config.Key then isAiming = false end
+    if input.KeyCode == Config.Key then
+        isAiming = false
+    end
 end))
 
 -- Movement Hooks
@@ -671,7 +564,7 @@ table.insert(_G.SakaHubConnections, UserInputService.JumpRequest:Connect(functio
 end))
 
 -- ====================================================================
--- 🖥️ NATIVE HIGH-SPEED GUI WITH MINIMIZE & EXPAND SYSTEM
+-- 🖥️ NATIVE ULTRA-FAST GUI WITH MINIMIZE & EXPAND SYSTEM
 -- ====================================================================
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "SAKA_HUB_GUI"
@@ -688,12 +581,12 @@ pcall(function()
         Gui.Parent = CoreGui
     end
 end)
-if not Gui.Parent then pcall(function() Gui.Parent = LocalPlayer:WaitForChild("PlayerGui", 2) or CoreGui end) end
+if not Gui.Parent then pcall(function() Gui.Parent = LocalPlayer.PlayerGui end) end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 520, 0, 410)
-MainFrame.Position = UDim2.new(0.5, -260, 0.5, -205)
+MainFrame.Size = UDim2.new(0, 500, 0, 390)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -195)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -709,7 +602,7 @@ MainStroke.Color = Color3.fromRGB(255, 45, 55)
 MainStroke.Thickness = 1.5
 MainStroke.Parent = MainFrame
 
--- Floating Mini Logo
+-- Floating Mini Logo (When minimized)
 local MiniLogo = Instance.new("TextButton")
 MiniLogo.Name = "MiniLogo"
 MiniLogo.Size = UDim2.new(0, 50, 0, 50)
@@ -751,9 +644,9 @@ TitleLabel.Size = UDim2.new(1, -95, 1, 0)
 TitleLabel.Position = UDim2.new(0, 15, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "👑 SAKA HUB | RIVALS ANTI-BAN PRO ⚡"
+TitleLabel.Text = "👑 SAKA HUB | RIVALS PRO ⚡"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 45, 55)
-TitleLabel.TextSize = 14
+TitleLabel.TextSize = 15
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.Parent = TitleBar
 
@@ -800,7 +693,7 @@ NotifyLabel.Size = UDim2.new(1, -20, 0, 20)
 NotifyLabel.Position = UDim2.new(0, 10, 1, -25)
 NotifyLabel.BackgroundTransparency = 1
 NotifyLabel.Font = Enum.Font.GothamMedium
-NotifyLabel.Text = loadedSuccessfully and "💾 โหลดการตั้งค่าล่าสุดสำเร็จ! (Persistent Saved)" or "🛡️ Anti-Ban & Legit Systems Active"
+NotifyLabel.Text = loadedSuccessfully and "💾 โหลดการตั้งค่าล่าสุดสำเร็จ! (Persistent Saved)" or "⚡ SAKA HUB Ready! Press [RightControl] to Toggle"
 NotifyLabel.TextColor3 = loadedSuccessfully and Color3.fromRGB(100, 255, 120) or Color3.fromRGB(180, 180, 180)
 NotifyLabel.TextSize = 11
 NotifyLabel.Parent = MainFrame
@@ -1085,7 +978,6 @@ end
 -- 📑 CREATE TABS & ADD ALL CONTROLS
 -- ====================================================================
 local CombatPage = CreateTab("Combat", "🎯")
-local AntiBanPage = CreateTab("Anti-Ban", "🛡️")
 local VisualsPage = CreateTab("Visuals", "👁️")
 local MovementPage = CreateTab("Move", "⚡")
 local TeleportPage = CreateTab("Teleport", "🚀")
@@ -1095,63 +987,17 @@ local MiscPage = CreateTab("Misc", "🎁")
 -- 🎯 TAB 1: COMBAT
 -- --------------------------------------------------------------------
 AddToggle(CombatPage, "Master Aim Lock", Config.AimLock, function(v) Config.AimLock = v end)
-AddToggle(CombatPage, "⚡ Instant Snap (0ms Lock)", Config.InstantSnap, function(v) Config.InstantSnap = v end)
-AddToggle(CombatPage, "Sticky Lock (เกาะเป้าไม่หลุด)", Config.StickyLock, function(v) Config.StickyLock = v end)
+AddToggle(CombatPage, "Sticky Lock (ล็อคติดแน่นไม่หลุด)", Config.StickyLock, function(v) Config.StickyLock = v end)
 AddChoice(CombatPage, "Target Bone", {"Head", "Torso"}, Config.Bone, function(v) Config.Bone = v end)
 AddChoice(CombatPage, "Trigger Mode", {"Hold Key (Shift)", "Hold RMB (Right Click)", "Always On"}, Config.TriggerMode, function(v) Config.TriggerMode = v end)
-AddChoice(CombatPage, "Priority Mode", {"Closest Crosshair", "Closest Distance"}, Config.Priority, function(v) Config.Priority = v end)
-AddSlider(CombatPage, "Lock Smoothness (40=Legit)", 0, 100, Config.Smoothness, "%", function(v) Config.Smoothness = v end)
+AddChoice(CombatPage, "Priority Mode", {"Closest Distance", "Closest Crosshair"}, Config.Priority, function(v) Config.Priority = v end)
+AddSlider(CombatPage, "Lock Speed (Smoothness)", 10, 100, Config.Smoothness, "%", function(v) Config.Smoothness = v end)
 AddToggle(CombatPage, "Show FOV Circle", Config.ShowFOV, function(v) Config.ShowFOV = v end)
 AddSlider(CombatPage, "FOV Circle Radius", 20, 400, Config.FOVRadius, "px", function(v) Config.FOVRadius = v end)
 AddToggle(CombatPage, "Aim Lock Tracer (เส้นชี้เป้า)", Config.ShowAimTracer, function(v) Config.ShowAimTracer = v end)
 
 -- --------------------------------------------------------------------
--- 🛡️ TAB 2: ANTI-BAN & LEGIT PROTECTIONS
--- --------------------------------------------------------------------
-AddToggle(AntiBanPage, "🛡️ Wall Check (ไม่ล็อคทะลุกำแพง)", Config.WallCheck, function(v)
-    Config.WallCheck = v
-    NotifyLabel.Text = v and "🛡️ Wall Check Active (Safe)" or "⚠️ Wall Check Disabled"
-    NotifyLabel.TextColor3 = v and Color3.fromRGB(100, 255, 120) or Color3.fromRGB(255, 100, 100)
-end)
-
-AddToggle(AntiBanPage, "🎲 Hitbox Randomizer (สุ่มหัว/ตัวกันแบน)", Config.RandomHitbox, function(v)
-    Config.RandomHitbox = v
-    NotifyLabel.Text = v and "🎲 70% Head / 30% Torso (Legit Stats)" or "🎯 Fixed Bone Mode"
-    NotifyLabel.TextColor3 = v and Color3.fromRGB(100, 255, 120) or Color3.fromRGB(200, 200, 200)
-end)
-
-AddToggle(AntiBanPage, "✨ Humanize Smooth Curves (เล็งเนียน)", Config.Humanize, function(v)
-    Config.Humanize = v
-end)
-
-AddButton(AntiBanPage, "🟢 โหมดเซฟสูงสุด (Apply Legit / Safe Mode)", function()
-    Config.AimLock = true
-    Config.InstantSnap = false
-    Config.Smoothness = 50
-    Config.FOVRadius = 130
-    Config.WallCheck = true
-    Config.RandomHitbox = true
-    Config.Humanize = true
-    Config.Speed = false
-    RequestSaveSettings()
-    NotifyLabel.Text = "🟢 ปรับเป็นโหมดเซฟสูงสุด (Legit) เรียบร้อยแล้ว!"
-    NotifyLabel.TextColor3 = Color3.fromRGB(0, 255, 120)
-end)
-
-AddButton(AntiBanPage, "🔴 โหมดตึงโหด (Apply Rage / 0ms Full Lock)", function()
-    Config.AimLock = true
-    Config.InstantSnap = true
-    Config.Smoothness = 0
-    Config.FOVRadius = 260
-    Config.WallCheck = false
-    Config.RandomHitbox = false
-    RequestSaveSettings()
-    NotifyLabel.Text = "🔴 ปรับเป็นโหมดดุดัน (Rage 0ms) เรียบร้อยแล้ว!"
-    NotifyLabel.TextColor3 = Color3.fromRGB(255, 50, 60)
-end)
-
--- --------------------------------------------------------------------
--- 👁️ TAB 3: VISUALS & ESP
+-- 👁️ TAB 2: VISUALS & ESP
 -- --------------------------------------------------------------------
 AddToggle(VisualsPage, "Red Top Screen Bar", Config.ShowTopLine, function(v)
     Config.ShowTopLine = v
@@ -1170,10 +1016,10 @@ end)
 AddToggle(VisualsPage, "🛡️ Anti-Flashbang / Anti-Blind", Config.AntiFlashbang, function(v) Config.AntiFlashbang = v end)
 
 -- --------------------------------------------------------------------
--- ⚡ TAB 4: MOVEMENT
+-- ⚡ TAB 3: MOVEMENT
 -- --------------------------------------------------------------------
 AddToggle(MovementPage, "Speed Hack", Config.Speed, function(v) Config.Speed = v end)
-AddSlider(MovementPage, "WalkSpeed Value (28-32=Safe)", 16, 60, Config.WalkSpeed, "Speed", function(v) Config.WalkSpeed = v end)
+AddSlider(MovementPage, "WalkSpeed Value", 16, 80, Config.WalkSpeed, "Speed", function(v) Config.WalkSpeed = v end)
 AddToggle(MovementPage, "Infinite Jump", Config.InfJump, function(v) Config.InfJump = v end)
 AddButton(MovementPage, "🔄 Instant Respawn", function()
     pcall(function()
@@ -1183,7 +1029,7 @@ AddButton(MovementPage, "🔄 Instant Respawn", function()
 end)
 
 -- --------------------------------------------------------------------
--- 🚀 TAB 5: TELEPORTS
+-- 🚀 TAB 4: TELEPORTS
 -- --------------------------------------------------------------------
 local Spawns = {
     ["Hub Center"] = CFrame.new(109, -680, 1184),
@@ -1201,7 +1047,7 @@ for name, cf in pairs(Spawns) do
 end
 
 -- --------------------------------------------------------------------
--- 🎁 TAB 6: MISC
+-- 🎁 TAB 5: MISC
 -- --------------------------------------------------------------------
 AddButton(MiscPage, "🎁 Claim All Free Gifts & Pass", function()
     pcall(function()
@@ -1257,4 +1103,4 @@ table.insert(_G.SakaHubConnections, UserInputService.InputBegan:Connect(function
     end
 end))
 
-print("👑 [SAKA HUB] RIVALS Anti-Ban & Legit Edition V14.0 Loaded Successfully!")
+print("👑 [SAKA HUB] RIVALS Pure Edition V13.0 Loaded Successfully!")
