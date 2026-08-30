@@ -1,6 +1,9 @@
--- ====================================================================
--- 👑 SAKA HUB - UNIVERSAL MULTI GAME LOADER
--- ====================================================================
+--[[
+    ═══════════════════════════════════════════════════════════════
+    👑 SAKA HUB - UNIVERSAL MULTI-GAME LOADER (MAIN.LUA)
+    🌐 Repository: djdjdjrididi85-design/SakaHub
+    ═══════════════════════════════════════════════════════════════
+--]]
 
 local PlaceId = game.PlaceId
 local GameId = game.GameId
@@ -10,22 +13,44 @@ print("👑 [SAKA HUB] Universal Multi-Game Loader")
 print("🎮 Place ID: " .. tostring(PlaceId) .. " | Game ID: " .. tostring(GameId))
 print("--------------------------------------------------")
 
--- 1. Chicken Farm Tycoon
-if PlaceId == 137233438285284 or GameId == 18209534490 or PlaceId == 18337775882 or GameId == 6301323329 then
-    print("🐔 [SAKA HUB] Loading Chicken Farm Tycoon Script...")
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/djdjdjrididi85-design/SakaHub/main/ChickenFarm.lua?t=" .. tick()))()
+local BaseUrl = "https://raw.githubusercontent.com/djdjdjrididi85-design/SakaHub/main/"
 
--- 2. King Legacy (Sea 1, Sea 2, Sea 3)
-elseif PlaceId == 4520749081 or PlaceId == 6381829480 or PlaceId == 5931540094 or GameId == 1575951504 then
-    print("⚔️ [SAKA HUB] Loading King Legacy Script...")
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/djdjdjrididi85-design/SakaHub/main/KingLegacy.lua?t=" .. tick()))()
+local function loadScript(fileName)
+    local url = BaseUrl .. fileName
+    local success, err = pcall(function()
+        loadstring(game:HttpGet(url))()
+    end)
+    if not success then
+        warn("⚠️ Remote load failed, attempting local file read...")
+        if isfile and isfile(fileName) and readfile then
+            pcall(function()
+                loadstring(readfile(fileName))()
+            end)
+        end
+    end
+end
 
--- 3. Murder Mystery 2 (MM2)
-elseif PlaceId == 142823291 or GameId == 66654135 then
-    print("🔪 [SAKA HUB] Loading Murder Mystery 2 Script...")
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/djdjdjrididi85-design/SakaHub/main/MM2.lua?t=" .. tick()))()
+-- 1. 🎯 RIVALS (Universe ID: 6035872082 | ทั้ง Lobby และห้องแข่งขัน)
+if GameId == 6035872082 or PlaceId == 17625359962 or PlaceId == 117398147513099 then
+    print("✅ [SAKA HUB] Detected Game: RIVALS")
+    loadScript("Rivals.lua")
 
--- 4. เกมอื่นๆ ที่ยังไม่รองรับ
+-- 2. 🔫 GUNFIGHT ARENA
+elseif PlaceId == 90568084448279 or GameId == 5576721528 then
+    print("✅ [SAKA HUB] Detected Game: GUNFIGHT ARENA")
+    loadScript("GunfightArena.lua")
+
+-- 3. ⚔️ BLOX FRUITS
+elseif GameId == 994732206 or PlaceId == 2753915549 or PlaceId == 4442272183 or PlaceId == 7449423635 then
+    print("✅ [SAKA HUB] Detected Game: BLOX FRUITS")
+    loadScript("BloxFruits_Sea1.lua")
+
+-- 4. 🥚 STEAL EGGS
+elseif PlaceId == 107778070777162 then
+    print("✅ [SAKA HUB] Detected Game: STEAL EGGS")
+    loadScript("MainScript.lua")
+
+-- ❌ UNSUPPORTED
 else
     warn("⚠️ [SAKA HUB] This game is not supported yet! (Place ID: " .. tostring(PlaceId) .. " | Game ID: " .. tostring(GameId) .. ")")
 end
