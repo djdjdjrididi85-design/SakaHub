@@ -15,24 +15,15 @@ local VirtualUser = game:GetService("VirtualUser")
 -- ⚙️ CONFIGURATION SETTINGS
 -- ========================================================
 _G.ChickenFarmConfig = {
-    -- [1] Farm Mode
-    ["AutoFarmLoop"] = true,          -- เดินเก็บไข่เฉพาะในช่องรวมไข่
-    ["WalkSpeed"] = 32,               -- ความเร็วเดิน
-
-    -- [2] Deposit Eggs & Multiplier Filter
-    ["AutoDepositEggs"] = true,       -- เดินไปส่งไข่ที่ร้าน Deposit Eggs
-    ["OnlyDepositOnTargetMultiplier"] = true, -- ส่งไข่เมื่อตัวคูณถึงเป้าหมาย
-    ["TargetDepositMultiplier"] = 1.30, -- ตัวคูณขั้นต่ำ (เช่น 1.30x)
-
-    -- [3] Auto Collect Cash (3 โหมดการทำงาน)
-    ["CollectCashMode"] = "Every X Seconds", -- "Always", "Every X Seconds", "Only on Max Multiplier"
-    ["CashCollectInterval"] = 6,      -- หน่วงเวลาไปแตะรับเงิน (วินาที)
-
-    -- [4] Lucky Block Automation
-    ["AutoLuckyBlock"] = true,        -- ซื้อกล่องอัตโนมัติ / Discard ทิ้งทันทีถ้าเงินไม่พอ
-
-    -- [5] System & Mods
-    ["AntiAFK"] = true,               -- ป้องกันหลุด 20 นาที
+    ["AutoFarmLoop"] = true,
+    ["WalkSpeed"] = 32,
+    ["AutoDepositEggs"] = true,
+    ["OnlyDepositOnTargetMultiplier"] = true,
+    ["TargetDepositMultiplier"] = 1.30,
+    ["CollectCashMode"] = "Every X Seconds",
+    ["CashCollectInterval"] = 6,
+    ["AutoLuckyBlock"] = true,
+    ["AntiAFK"] = true,
 }
 
 -- ========================================================
@@ -52,7 +43,7 @@ pcall(function()
 end)
 
 -- ========================================================
--- 🐣 2. ORION UI INITIALIZATION (CLEAN INSTANCE RESET)
+-- 🐣 2. ORION UI INITIALIZATION
 -- ========================================================
 pcall(function()
     local CoreGui = game:GetService("CoreGui")
@@ -106,12 +97,11 @@ local BaseTab = Window:MakeTab({Name = "🏠 My Base", PremiumOnly = false})
 local SpeedTab = Window:MakeTab({Name = "⚡ Settings & Speed", PremiumOnly = false})
 
 -- ========================================================
--- 🌾 TAB 1: AUTO FARM (BASE ONLY & DEPOSIT EGGS)
+-- 🌾 TAB 1: AUTO FARM
 -- ========================================================
 MainTab:AddSection({Name = "🥚 Base Egg Farm & AFK"})
 
-local autoFarmToggle
-autoFarmToggle = MainTab:AddToggle({
+MainTab:AddToggle({
     Name = "🚀 Enable Auto Farm (Collect Eggs in Base)",
     Default = _G.ChickenFarmConfig["AutoFarmLoop"],
     Callback = function(Value)
@@ -138,9 +128,9 @@ MainTab:AddButton({
 
 MainTab:AddSection({Name = "🧺 Deposit Eggs & Multiplier Settings"})
 
-local autoDepositToggle = MainTab:AddToggle({
+MainTab:AddToggle({
     Name = "🧺 Auto Deposit Eggs (Walk to Deposit Stall)",
-    Default = _G.ChickenFarmConfig["AutoDepositEggs"] ~= nil and _G.ChickenFarmConfig["AutoDepositEggs"] or true,
+    Default = _G.ChickenFarmConfig["AutoDepositEggs"],
     Callback = function(Value)
         _G.ChickenFarmConfig["AutoDepositEggs"] = Value
     end
@@ -148,7 +138,7 @@ local autoDepositToggle = MainTab:AddToggle({
 
 MainTab:AddToggle({
     Name = "🎯 Filter by Multiplier (Deposit on Target)",
-    Default = _G.ChickenFarmConfig["OnlyDepositOnTargetMultiplier"] ~= nil and _G.ChickenFarmConfig["OnlyDepositOnTargetMultiplier"] or true,
+    Default = _G.ChickenFarmConfig["OnlyDepositOnTargetMultiplier"],
     Callback = function(Value)
         _G.ChickenFarmConfig["OnlyDepositOnTargetMultiplier"] = Value
     end
@@ -171,14 +161,14 @@ MainTab:AddSection({Name = "📦 Lucky Block Automation"})
 
 MainTab:AddToggle({
     Name = "📦 Auto Handle Lucky Block (Buy / Discard if Low Cash)",
-    Default = _G.ChickenFarmConfig["AutoLuckyBlock"] ~= nil and _G.ChickenFarmConfig["AutoLuckyBlock"] or true,
+    Default = _G.ChickenFarmConfig["AutoLuckyBlock"],
     Callback = function(Value)
         _G.ChickenFarmConfig["AutoLuckyBlock"] = Value
     end
 })
 
 -- ========================================================
--- 💰 TAB 2: AUTO COLLECT CASH (3 CHOICES)
+-- 💰 TAB 2: AUTO COLLECT CASH
 -- ========================================================
 CashTab:AddSection({Name = "💰 3-Mode Auto Collect Cash System"})
 
@@ -227,7 +217,6 @@ local function getMyPlot()
     return nil
 end
 
--- ค้นหาแท่น Deposit Eggs (หน้าร้าน NPC ส่งไข่) ในฐานตัวเอง 100%
 local function getDepositEggsPart()
     local myPlot = getMyPlot()
     if myPlot then
@@ -260,7 +249,6 @@ local function getDepositEggsPart()
     return nil
 end
 
--- ค้นหาแท่น Collect Cash (ตระกร้าเงินหน้าฐาน) 100%
 local function getCollectCashPart()
     local myPlot = getMyPlot()
     if myPlot then
@@ -303,7 +291,6 @@ local function getCollectCashPart()
     return nil
 end
 
--- ตรวจสอบตัวคูณไข่ Egg Multiplier ของเกมแบบเรียลไทม์ (0.50x - 1.50x)
 local function getCurrentMultiplier()
     local mult = 1.0
 
@@ -348,9 +335,8 @@ local function getCurrentMultiplier()
 end
 
 -- ========================================================
--- 📦 LUCKY BLOCK AUTO BUY / DISCARD ENGINE
+-- 📦 LUCKY BLOCK AUTO BUY / DISCARD
 -- ========================================================
-
 local function parseCurrency(str)
     if not str then return 0 end
     local clean = string.gsub(tostring(str), "[$,%s]", "")
@@ -375,9 +361,7 @@ local function getPlayerCash()
                     local t = obj.Text
                     if string.match(t, "^%$%d+%.?%d*[kKmMbBtT]?$") or string.match(t, "^%d+%.?%d*[kKmMbBtT]?%$?$") then
                         local parsed = parseCurrency(t)
-                        if parsed > cash then
-                            cash = parsed
-                        end
+                        if parsed > cash then cash = parsed end
                     end
                 end
             end
@@ -593,9 +577,7 @@ local function walkTo(targetPos)
             local currentPos2D = Vector2.new(hrp.Position.X, hrp.Position.Z)
             local targetPos2D = Vector2.new(targetPos.X, targetPos.Z)
             local dist = (currentPos2D - targetPos2D).Magnitude
-            if dist <= 2.5 then
-                break
-            end
+            if dist <= 2.5 then break end
             task.wait(0.04)
         end
     end
