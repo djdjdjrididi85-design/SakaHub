@@ -1,4 +1,4 @@
-========================================================
+-- ========================================================
 -- 🐣 CHICKEN FARM PRO AUTO FARM ENGINE (BASE ONLY + MULTIPLIER + CASH MODES)
 -- Game: Chicken Farm 🐣 (PlaceId: 137233438285284)
 -- ========================================================
@@ -231,7 +231,6 @@ end
 local function getDepositEggsPart()
     local myPlot = getMyPlot()
     if myPlot then
-        -- 1. ค้นหาจาก BillboardGui ที่เขียนว่า "Deposit Eggs"
         for _, obj in ipairs(myPlot:GetDescendants()) do
             if obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
                 for _, lbl in ipairs(obj:GetDescendants()) do
@@ -246,14 +245,12 @@ local function getDepositEggsPart()
             end
         end
 
-        -- 2. ค้นหาพรมสีเหลือง/แท่นหน้าร้าน Deposit
         for _, obj in ipairs(myPlot:GetDescendants()) do
             if obj:IsA("BasePart") then
                 local nameLower = string.lower(obj.Name)
                 if string.find(nameLower, "deposit") or string.find(nameLower, "stand") or string.find(nameLower, "seller") then
                     return obj
                 end
-                -- ตรวจสอบพรมสีเหลืองหน้าร้าน
                 if (obj.BrickColor.Name == "Bright yellow" or obj.BrickColor.Name == "New Yeller" or obj.BrickColor.Name == "Cool yellow") and obj.Size.X >= 4 and obj.Size.Z >= 4 then
                     return obj
                 end
@@ -267,7 +264,6 @@ end
 local function getCollectCashPart()
     local myPlot = getMyPlot()
     if myPlot then
-        -- 1. ค้นหาจาก BillboardGui ที่เขียนว่า "Collect Cash"
         for _, obj in ipairs(myPlot:GetDescendants()) do
             if obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
                 for _, lbl in ipairs(obj:GetDescendants()) do
@@ -282,7 +278,6 @@ local function getCollectCashPart()
             end
         end
 
-        -- 2. ค้นหาจากชื่อ Part
         for _, obj in ipairs(myPlot:GetDescendants()) do
             if obj:IsA("BasePart") then
                 local nameLower = string.lower(obj.Name)
@@ -293,7 +288,6 @@ local function getCollectCashPart()
         end
     end
 
-    -- ค้นหาทั่ว Workspace ถ้าอยู่ใน Plot ตัวเอง
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BillboardGui") then
             for _, lbl in ipairs(obj:GetDescendants()) do
@@ -313,14 +307,12 @@ end
 local function getCurrentMultiplier()
     local mult = 1.0
 
-    -- 1. ดึงตรงจาก ReplicatedStorage Value (แม่นยำ 100% ตอบสนองทันที 0ms)
     local rs = game:GetService("ReplicatedStorage")
     local multVal = rs:FindFirstChild("EggMultiplier")
     if multVal and tonumber(multVal.Value) then
         return tonumber(multVal.Value)
     end
 
-    -- 2. ดึงจาก Workspace UI (Map.EggMultiplierPart)
     if workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("EggMultiplierPart") then
         pcall(function()
             local text = workspace.Map.EggMultiplierPart.UI.Multi.Text
@@ -330,7 +322,6 @@ local function getCurrentMultiplier()
         if mult and mult >= 0.4 then return mult end
     end
 
-    -- 3. ตรวจสอบใน Billboard / พื้นที่ฐาน
     local myPlot = getMyPlot()
     if myPlot then
         for _, gui in ipairs(myPlot:GetDescendants()) do
@@ -360,7 +351,6 @@ end
 -- 📦 LUCKY BLOCK AUTO BUY / DISCARD ENGINE
 -- ========================================================
 
--- แปลงข้อความตัวเลขที่มี K, M, B, T ให้เป็นตัวเลขจริง
 local function parseCurrency(str)
     if not str then return 0 end
     local clean = string.gsub(tostring(str), "[$,%s]", "")
@@ -375,7 +365,6 @@ local function parseCurrency(str)
     return num
 end
 
--- ดึงเงินสดของผู้เล่นปัจจุบัน
 local function getPlayerCash()
     local cash = 0
     pcall(function()
@@ -406,7 +395,6 @@ local function getPlayerCash()
     return cash
 end
 
--- ฟังก์ชันจัดการ Lucky Block (ซื้อ/Unlock ถ้าเงินพอ / Discard ทันทีถ้าเงินไม่พอ)
 local lastLuckyBlockHandled = 0
 local function handleLuckyBlock()
     if not _G.ChickenFarmConfig["AutoLuckyBlock"] then return end
@@ -423,7 +411,6 @@ local function handleLuckyBlock()
                         local cost = 0
                         local costLabel = nil
                         
-                        -- 1. ค้นหาป้ายราคา Cost: $XXX (เช่น $38.92M หรือ $474.61B)
                         for _, lbl in ipairs(luckyFrame:GetDescendants()) do
                             if lbl:IsA("TextLabel") and lbl.Visible and string.find(string.lower(lbl.Text), "cost") then
                                 cost = parseCurrency(lbl.Text)
@@ -435,7 +422,6 @@ local function handleLuckyBlock()
                         local myCash = getPlayerCash()
                         local buttonsHolder = luckyFrame:FindFirstChild("Buttons") or luckyFrame
                         
-                        -- ฟังก์ชันช่วยจำลองการคลิกปุ่มทุกระบบ (firesignal + VirtualInputManager)
                         local function clickGuiButton(btn)
                             if not btn then return end
                             lastLuckyBlockHandled = tick()
@@ -460,7 +446,6 @@ local function handleLuckyBlock()
                             end)
                         end
                         
-                        -- 2. ถ้าเงินพอซื้อ -> กดปุ่มสีเขียว "Unlock!"
                         if myCash >= cost and cost > 0 then
                             for _, btn in ipairs(buttonsHolder:GetDescendants()) do
                                 if btn:IsA("GuiButton") and btn.Visible then
@@ -470,7 +455,6 @@ local function handleLuckyBlock()
                                         if t:IsA("TextLabel") then btnText = btnText .. " " .. string.lower(t.Text) end
                                     end
                                     
-                                    -- ตรวจจับปุ่ม Unlock / Buy ที่ไม่ใช่ปุ่ม Robux
                                     local isUnlock = string.find(bName, "unlock") or string.find(btnText, "unlock") or string.find(bName, "open") or string.find(btnText, "open") or (string.find(bName, "buy") and not string.find(bName, "robux") and not string.find(btnText, "robux"))
                                     local isRobux = string.find(bName, "robux") or string.find(btnText, "robux") or string.find(btnText, "r%$")
                                     
@@ -486,7 +470,6 @@ local function handleLuckyBlock()
                                 end
                             end
                         else
-                            -- 3. ถ้าเงินไม่พอ -> กดปุ่มสีแดง "Discard" ทิ้งทันที!
                             for _, btn in ipairs(buttonsHolder:GetDescendants()) do
                                 if btn:IsA("GuiButton") and btn.Visible then
                                     local bName = string.lower(btn.Name)
@@ -514,7 +497,6 @@ local function handleLuckyBlock()
     end)
 end
 
--- ลูปตรวจสอบ Lucky Block อัตโนมัติทุก 0.3 วินาที
 task.spawn(function()
     while task.wait(0.3) do
         handleLuckyBlock()
@@ -573,7 +555,6 @@ SpeedTab:AddToggle({
     end
 })
 
--- NoClip Loop
 RunService.Stepped:Connect(function()
     if _G.ChickenFarmConfig["NoClip"] or _G.ChickenFarmConfig["AutoFarmLoop"] then
         pcall(function()
@@ -590,7 +571,7 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ========================================================
--- 🏃 SMOOTH WALKING ENGINE (ระบบเดินเก็บไข่และเดินส่งไข่บนพื้น)
+-- 🏃 SMOOTH WALKING ENGINE
 -- ========================================================
 local function walkTo(targetPos)
     local char = LocalPlayer.Character
@@ -598,13 +579,11 @@ local function walkTo(targetPos)
     local hum = char:FindFirstChildOfClass("Humanoid")
     local hrp = char.HumanoidRootPart
 
-    -- ลบ BodyVelocity เก่าออกเพื่อให้ตัวละครเดินตามปกติ
     if hrp:FindFirstChild("FarmVelocity") then
         hrp.FarmVelocity:Destroy()
     end
 
     if hum then
-        -- ตั้งค่าความเร็วเดิน
         local speed = _G.ChickenFarmConfig["WalkSpeed"] or 32
         hum.WalkSpeed = speed
 
@@ -622,27 +601,6 @@ local function walkTo(targetPos)
     end
 end
 
--- ค้นหาชิ้นส่วนพื้นหญ้าหลักของฐานตัวเอง
-local function getPlotGroundPart()
-    local myPlot = getMyPlot()
-    if myPlot then
-        local bestPart = nil
-        local maxArea = 0
-        for _, obj in ipairs(myPlot:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                local area = obj.Size.X * obj.Size.Z
-                if area > maxArea and obj.Size.X >= 25 and obj.Size.Z >= 25 then
-                    maxArea = area
-                    bestPart = obj
-                end
-            end
-        end
-        return bestPart
-    end
-    return nil
-end
-
--- ค้นหาชิ้นส่วนราง/ลานสีแดง (Red Drop Runway) ในฐานตัวเอง 100%
 local function getRedLaneParts()
     local myPlot = getMyPlot()
     local redParts = {}
@@ -650,7 +608,6 @@ local function getRedLaneParts()
         for _, obj in ipairs(myPlot:GetDescendants()) do
             if obj:IsA("BasePart") then
                 local c = obj.Color
-                -- ตรวจจับสีแดงของรางไข่ (R เด่นชัดเจน) หรือชื่อที่เกี่ยวข้อง
                 local isRed = (c.R > 0.52 and c.G < 0.38 and c.B < 0.38) or 
                               (obj.BrickColor.Name == "Really red" or obj.BrickColor.Name == "Bright red" or obj.BrickColor.Name == "Crimson" or obj.BrickColor.Name == "Rust")
                 local nameLower = string.lower(obj.Name)
@@ -666,7 +623,7 @@ local function getRedLaneParts()
 end
 
 -- ========================================================
--- 🥚 CENTRAL DROP PIT DETECTION (ช่องรวมไข่ตรงกลาง)
+-- 🥚 CENTRAL DROP PIT DETECTION
 -- ========================================================
 _G.CustomDropPitPosition = nil
 
@@ -678,7 +635,6 @@ local function getDropPitCenter()
     local myPlot = getMyPlot()
     if myPlot then
         local redParts = getRedLaneParts()
-        -- ค้นหาชิ้นส่วนรางสีแดงส่วนล่าง/กลาง ที่เป็นแอ่งรวมไข่ (ใกล้กับร้าน Deposit/ด้านหน้าสุดของราง)
         local depPart = getDepositEggsPart()
         local bestPart = nil
         local minDist = 99999
@@ -702,7 +658,6 @@ local function getDropPitCenter()
     return nil
 end
 
--- ตรวจสอบว่าไข่อยู่ใน "ช่องรวมไข่ตรงกลาง" (รัศมี 7 Studs) หรือไม่
 local function isInsideDropPit(eggPos)
     local pitPos = getDropPitCenter()
     if not pitPos then return true end
@@ -711,7 +666,6 @@ local function isInsideDropPit(eggPos)
     local dz = math.abs(eggPos.Z - pitPos.Z)
     local dy = math.abs(eggPos.Y - pitPos.Y)
 
-    -- ล็อคให้อยู่ในกรอบสี่เหลี่ยมช่องรวมไข่เท่านั้น (กว้างไม่เกิน 7x7 Studs และสูงไม่เกิน 3.5 Studs)
     return (dx <= 6.5 and dz <= 6.5 and dy <= 3.5)
 end
 
@@ -740,7 +694,7 @@ task.spawn(function()
                     return
                 end
 
-                -- [1] ตรวจสอบและส่งไข่ที่ Deposit Eggs ทันทีเมื่อ "ตัวคูณถึงเป้าหมายขั้นต่ำ"
+                -- [1] ส่งไข่เมื่อตัวคูณถึงเป้าหมาย
                 local curMult = getCurrentMultiplier()
                 local targetMult = _G.ChickenFarmConfig["TargetDepositMultiplier"] or 1.30
                 local isMultiplierReady = not _G.ChickenFarmConfig["OnlyDepositOnTargetMultiplier"] or (curMult >= targetMult)
@@ -748,14 +702,12 @@ task.spawn(function()
                 if _G.ChickenFarmConfig["AutoDepositEggs"] and isMultiplierReady then
                     local depPart = getDepositEggsPart()
                     if depPart then
-                        -- เดินไปเหยียบพรมหน้าร้าน Deposit Eggs ทันที
                         walkTo(depPart.Position)
                         if firetouchinterest then
                             firetouchinterest(hrp, depPart, 0)
                             task.wait(0.08)
                             firetouchinterest(hrp, depPart, 1)
                         end
-                        -- ยิง Remote ส่งไข่
                         pcall(function()
                             local rep = ReplicatedStorage:FindFirstChild("Replicator")
                             if rep and rep:FindFirstChild("__replicate") then
@@ -768,7 +720,7 @@ task.spawn(function()
                     end
                 end
 
-                -- [2] ค้นหาและเดินเก็บไข่ใน "ช่องรวมไข่ตรงกลาง"
+                -- [2] เก็บไข่ในช่องรวมไข่
                 local eggsFolder = workspace:FindFirstChild("Eggs")
                 local myEggs = {}
 
@@ -816,12 +768,11 @@ task.spawn(function()
                         end
                     end
                 else
-                    -- [3] หากไม่มีไข่ในช่อง -> ยืนรอ AFK ตรงกลาง "ช่องรวมไข่"
                     walkTo(pitCenter)
                     task.wait(0.25)
                 end
 
-                -- [5] ระบบ AUTO COLLECT CASH (ตาม 3 โหมดที่เลือก)
+                -- [3] เก็บเงินอัตโนมัติ (Collect Cash)
                 local mode = _G.ChickenFarmConfig["CollectCashMode"] or "Every X Seconds"
                 local shouldCollectCash = false
                 local now = tick()
@@ -834,7 +785,7 @@ task.spawn(function()
                     end
                 elseif mode == "Only on Max Multiplier" then
                     local curMult = getCurrentMultiplier()
-                    if curMult >= 1.35 then -- ตัวคูณสูงสุด (1.4x - 1.5x)
+                    if curMult >= 1.35 then
                         shouldCollectCash = true
                     end
                 end
@@ -842,14 +793,12 @@ task.spawn(function()
                 if shouldCollectCash then
                     local cashPart = getCollectCashPart()
                     if cashPart then
-                        -- เดินไปที่แท่นรับเงิน Collect Cash หน้าฐาน
                         walkTo(cashPart.Position)
                         if firetouchinterest then
                             firetouchinterest(hrp, cashPart, 0)
                             task.wait(0.08)
                             firetouchinterest(hrp, cashPart, 1)
                         end
-                        -- ยิง Remote สำรอง
                         pcall(function()
                             local rep = ReplicatedStorage:FindFirstChild("Replicator")
                             if rep and rep:FindFirstChild("__replicate") then
