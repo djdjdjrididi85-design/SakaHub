@@ -1,3 +1,11 @@
+--[[
+    ═══════════════════════════════════════════════════════════════
+    👑 SAKA HUB - UNIVERSAL MULTI-GAME AUTO LOADER (V3.0 MASTER)
+    🌐 Repository: djdjdjrididi85-design/SakaHub
+    🚀 Automatically routes to the correct script based on GameId & PlaceId
+    ═══════════════════════════════════════════════════════════════
+--]]
+
 local PlaceId = game.PlaceId
 local GameId = game.GameId
 
@@ -6,27 +14,63 @@ print("👑 [SAKA HUB] Universal Multi-Game Loader V3.0")
 print("🎮 Place ID: " .. tostring(PlaceId) .. " | Game ID: " .. tostring(GameId))
 print("--------------------------------------------------")
 
--- 1. 🎯 RIVALS
+local BaseUrl = "https://raw.githubusercontent.com/djdjdjrididi85-design/SakaHub/main/"
+
+local function executeGameScript(fileName)
+    -- 1. ลองโหลดจากไฟล์ Local ในเครื่องก่อน (ถ้ามี)
+    if isfile and isfile(fileName) and readfile then
+        print("⚡ [SAKA HUB] Loading local file: " .. fileName)
+        local success, err = pcall(function()
+            loadstring(readfile(fileName))()
+        end)
+        if success then return true end
+        warn("⚠️ Local load failed: " .. tostring(err) .. ", trying remote fallback...")
+    end
+
+    -- 2. ดึงโค้ดออนไลน์จาก GitHub
+    local url = BaseUrl .. fileName
+    print("🌐 [SAKA HUB] Fetching from: " .. url)
+    local success, err = pcall(function()
+        loadstring(game:HttpGet(url))()
+    end)
+    if success then return true end
+    warn("⚠️ Remote load failed: " .. tostring(err))
+    return false
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- 🎮 GAME ROUTING TABLE (MATCHES UNIVERSE ID & PLACE IDS)
+-- ═══════════════════════════════════════════════════════════════
+
+-- 1. 🎯 RIVALS (Roblox FPS / PVP)
 if GameId == 6035872082 or PlaceId == 17625359962 or PlaceId == 117398147513099 then
-    print("✅ [SAKA HUB] Detected: RIVALS")
-    if isfile and isfile("Rivals.lua") then loadstring(readfile("Rivals.lua"))() end
+    print("✅ [SAKA HUB] Detected: RIVALS (Place: " .. tostring(PlaceId) .. ")")
+    executeGameScript("Rivals.lua")
 
--- 2. 🔫 GUNFIGHT ARENA
+-- 2. 🔫 GUNFIGHT ARENA (FPS / PVP & Bots)
 elseif PlaceId == 90568084448279 or GameId == 5576721528 then
-    print("✅ [SAKA HUB] Detected: GUNFIGHT ARENA")
-    if isfile and isfile("GunfightArena.lua") then loadstring(readfile("GunfightArena.lua"))() end
+    print("✅ [SAKA HUB] Detected: GUNFIGHT ARENA (Place: " .. tostring(PlaceId) .. ")")
+    executeGameScript("GunfightArena.lua")
 
--- 3. ⚔️ BLOX FRUITS
+-- 3. ⚔️ BLOX FRUITS (Sea 1, 2, 3)
 elseif GameId == 994732206 or PlaceId == 2753915549 or PlaceId == 4442272183 or PlaceId == 7449423635 then
-    print("✅ [SAKA HUB] Detected: BLOX FRUITS")
-    if isfile and isfile("BloxFruits_Sea1.lua") then loadstring(readfile("BloxFruits_Sea1.lua"))() end
+    print("✅ [SAKA HUB] Detected: BLOX FRUITS (Sea 1/2/3)")
+    executeGameScript("BloxFruits_Sea1.lua")
 
--- 4. 🥚 STEAL EGGS / AREA EGG STEALER (อัปเดต ID ใหม่แล้ว)
+-- 4. 🥚 STEAL EGGS / AREA EGG STEALER (รองรับ Place ID และ Game ID ปัจจุบัน)
 elseif PlaceId == 107778070777162 or PlaceId == 137233438285284 or GameId == 10209534490 then
-    print("✅ [SAKA HUB] Detected: STEAL EGGS (Place: " .. tostring(PlaceId) .. ")")
-    if isfile and isfile("MainScript.lua") then loadstring(readfile("MainScript.lua"))() end
+    print("✅ [SAKA HUB] Detected: STEAL EGGS / AREA EGG STEALER (Place: " .. tostring(PlaceId) .. ")")
+    executeGameScript("MainScript.lua")
 
--- ❌ UNSUPPORTED
+-- ❌ UNSUPPORTED GAME
 else
-    warn("⚠️ [SAKA HUB] This game is not supported yet! (Place ID: " .. tostring(PlaceId) .. ")")
+    local msg = string.format("⚠️ [SAKA HUB] This game is not supported yet! (Place ID: %s | Game ID: %s)", tostring(PlaceId), tostring(GameId))
+    warn(msg)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "👑 SAKA HUB",
+            Text = "Game not supported yet! (ID: " .. tostring(PlaceId) .. ")",
+            Duration = 5
+        })
+    end)
 end
