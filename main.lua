@@ -21,7 +21,8 @@ local function executeGameScript(fileName)
     if isfile and isfile(fileName) and readfile then
         print("⚡ [SAKA HUB] Loading local file: " .. fileName)
         local success, err = pcall(function()
-            loadstring(readfile(fileName))()
+            local fn, loadErr = loadstring(readfile(fileName))
+            if fn then fn() else error(loadErr) end
         end)
         if success then return true end
         warn("⚠️ Local load failed: " .. tostring(err) .. ", trying remote fallback...")
@@ -31,7 +32,13 @@ local function executeGameScript(fileName)
     local url = BaseUrl .. fileName
     print("🌐 [SAKA HUB] Fetching from: " .. url)
     local success, err = pcall(function()
-        loadstring(game:HttpGet(url))()
+        local src = game:HttpGet(url)
+        local fn, loadErr = loadstring(src)
+        if fn then
+            fn()
+        else
+            error("Failed to compile " .. fileName .. ": " .. tostring(loadErr))
+        end
     end)
     if success then return true end
     warn("⚠️ Remote load failed: " .. tostring(err))
@@ -57,9 +64,9 @@ elseif GameId == 994732206 or PlaceId == 2753915549 or PlaceId == 4442272183 or 
     print("✅ [SAKA HUB] Detected: BLOX FRUITS (Sea 1/2/3)")
     executeGameScript("BloxFruits_Sea1.lua")
 
--- 4. 🥚 STEAL EGGS / AREA EGG STEALER (รองรับ Place ID และ Game ID ปัจจุบัน)
+-- 4. 🐣 CHICKEN FARM TYCOON / AREA EGG STEALER
 elseif PlaceId == 107778070777162 or PlaceId == 137233438285284 or GameId == 10209534490 then
-    print("✅ [SAKA HUB] Detected: STEAL EGGS / AREA EGG STEALER (Place: " .. tostring(PlaceId) .. ")")
+    print("✅ [SAKA HUB] Detected: CHICKEN FARM TYCOON (Place: " .. tostring(PlaceId) .. ")")
     executeGameScript("MainScript.lua")
 
 -- ❌ UNSUPPORTED GAME
